@@ -13,13 +13,33 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-// Function to initialize Google auth
-export function initGoogleAuth() {
+// Initialize Google Auth when the file loads
+const loadGoogleAuthScript = () => {
+  // Check if script is already in the document
+  if (document.querySelector('script[src="https://accounts.google.com/gsi/client"]')) {
+    return;
+  }
+  
   const script = document.createElement('script');
   script.src = 'https://accounts.google.com/gsi/client';
   script.async = true;
   script.defer = true;
+  script.onload = () => {
+    console.log('Google Identity Services script loaded successfully');
+  };
+  script.onerror = () => {
+    console.error('Failed to load Google Identity Services script');
+  };
   document.body.appendChild(script);
+};
+
+// Execute script loading immediately
+loadGoogleAuthScript();
+
+// Function to initialize Google auth - kept for compatibility
+export function initGoogleAuth() {
+  // Just for backwards compatibility
+  loadGoogleAuthScript();
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -55,40 +75,88 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     checkAuthStatus();
   }, []);
 
+  // Initialize Google Sign-In on mount
+  useEffect(() => {
+    const initializeGoogleSignIn = () => {
+      if (!window.google || !window.google.accounts) return;
+      
+      try {
+        const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
+        if (!clientId) {
+          console.error('Google Client ID is not configured');
+          return;
+        }
+        
+        window.google.accounts.id.initialize({
+          client_id: clientId,
+          callback: async ({ credential }: any) => {
+            try {
+              console.log('Google credential received, authenticating...');
+              const response = await apiRequest('POST', '/api/auth/google', { credential });
+              const data = await response.json();
+              
+              setIsAuthenticated(true);
+              setUser(data.user);
+              setLocation('/dashboard');
+            } catch (error) {
+              console.error('Authentication error:', error);
+              toast({
+                variant: "destructive",
+                title: "Authentication failed",
+                description: error instanceof Error ? error.message : "Could not sign in with Google",
+              });
+            }
+          },
+          auto_select: false
+        });
+        
+        console.log('Google Sign-In initialized successfully');
+      } catch (error) {
+        console.error('Failed to initialize Google Sign-In:', error);
+      }
+    };
+    
+    // Check if Google API is loaded, if so initialize,
+    // otherwise wait for it to load
+    if (window.google && window.google.accounts) {
+      initializeGoogleSignIn();
+    } else {
+      const checkGoogleApi = setInterval(() => {
+        if (window.google && window.google.accounts) {
+          clearInterval(checkGoogleApi);
+          initializeGoogleSignIn();
+        }
+      }, 100);
+      
+      // Clean up interval
+      return () => clearInterval(checkGoogleApi);
+    }
+  }, [setLocation, toast]);
+
   const handleGoogleSignIn = async () => {
     return new Promise<void>((resolve, reject) => {
-      if (!window.google) {
-        reject(new Error('Google authentication failed to load'));
+      if (!window.google || !window.google.accounts) {
+        reject(new Error('Google authentication is not available'));
         return;
       }
 
-      window.google.accounts.id.initialize({
-        client_id: import.meta.env.VITE_GOOGLE_CLIENT_ID || '',
-        callback: async ({ credential }: any) => {
-          try {
-            const response = await apiRequest('POST', '/api/auth/google', { credential });
-            const data = await response.json();
-            
-            setIsAuthenticated(true);
-            setUser(data.user);
-            setLocation('/dashboard');
+      try {
+        window.google.accounts.id.prompt((notification: any) => {
+          if (notification.isNotDisplayed()) {
+            reject(new Error('Google sign-in was not displayed: ' + notification.getNotDisplayedReason()));
+          } else if (notification.isSkippedMoment()) {
+            reject(new Error('Google sign-in was skipped: ' + notification.getSkippedReason()));
+          } else if (notification.isDismissedMoment()) {
+            reject(new Error('Google sign-in was dismissed: ' + notification.getDismissedReason()));
+          } else {
+            // This is when sign-in is successful but doesn't mean we are authenticated yet
+            // The callback from initialize will handle the authentication
             resolve();
-          } catch (error) {
-            reject(error);
           }
-        },
-        context: 'signin'
-      });
-
-      window.google.accounts.id.prompt((notification: any) => {
-        if (notification.isNotDisplayed()) {
-          reject(new Error('Google sign-in was not displayed: ' + notification.getNotDisplayedReason()));
-        } else if (notification.isSkippedMoment()) {
-          reject(new Error('Google sign-in was skipped: ' + notification.getSkippedReason()));
-        } else if (notification.isDismissedMoment()) {
-          reject(new Error('Google sign-in was dismissed: ' + notification.getDismissedReason()));
-        }
-      });
+        });
+      } catch (error) {
+        reject(error);
+      }
     });
   };
 
