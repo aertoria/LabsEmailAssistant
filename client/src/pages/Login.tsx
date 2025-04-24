@@ -86,6 +86,18 @@ export default function Login() {
                   <p className="text-sm text-gray-600 mt-2">Authenticating...</p>
                 </div>
               )}
+              
+              {/* Debug information for development */}
+              <div className="mt-4 text-xs text-left text-gray-500 bg-gray-50 p-3 rounded border border-gray-200">
+                <p className="font-medium">Troubleshooting Information:</p>
+                <p>1. Make sure your Google Cloud Console is configured correctly.</p>
+                <p>2. Authorized JavaScript origins should include:<br/> 
+                   <code className="bg-gray-100 px-1">{window.location.origin}</code>
+                </p>
+                <p>3. Authorized redirect URIs should include:<br/>
+                   <code className="bg-gray-100 px-1">{window.location.origin}/api/auth/callback</code>
+                </p>
+              </div>
             </div>
             
             <div className="border-t border-gray-200 pt-6">

@@ -18,25 +18,41 @@ export function setupAuth(app: Express, storage: IStorage) {
   // Google authentication route
   app.post("/api/auth/google", async (req: Request, res: Response) => {
     try {
+      console.log('Google auth endpoint called with body:', JSON.stringify(req.body, null, 2));
       const { credential } = req.body;
       
       if (!credential) {
+        console.log('Missing credential in request');
         return res.status(400).json({
           message: "Missing credential",
         });
       }
 
-      // Verify the Google ID token
-      const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
-      const ticket = await client.verifyIdToken({
-        idToken: credential,
-        audience: process.env.GOOGLE_CLIENT_ID
-      });
-      
-      const payload = ticket.getPayload();
-      if (!payload || !payload.email) {
-        return res.status(400).json({
-          message: "Invalid credential",
+      console.log('Attempting to verify Google token with client ID:', 
+                 process.env.GOOGLE_CLIENT_ID ? 'Client ID exists' : 'Missing Client ID');
+                 
+      // Verify the Google ID token and get user info
+      let payload;
+      try {
+        const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
+        const ticket = await client.verifyIdToken({
+          idToken: credential,
+          audience: process.env.GOOGLE_CLIENT_ID
+        });
+        
+        payload = ticket.getPayload();
+        if (!payload || !payload.email) {
+          console.log('Invalid credential - missing payload or email');
+          return res.status(400).json({
+            message: "Invalid credential - missing required user information",
+          });
+        }
+        
+        console.log('Successfully verified token for email:', payload.email);
+      } catch (verifyError) {
+        console.error('Error verifying Google token:', verifyError);
+        return res.status(401).json({
+          message: "Failed to verify Google credential. The token may be invalid or expired.",
         });
       }
 

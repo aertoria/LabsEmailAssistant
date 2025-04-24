@@ -97,7 +97,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             try {
               console.log('Google credential received, authenticating...');
               const response = await apiRequest('POST', '/api/auth/google', { credential });
+              
+              if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.message || 'Backend authentication failed');
+              }
+              
               const data = await response.json();
+              console.log('Authentication successful, user data:', data);
               
               setIsAuthenticated(true);
               setUser(data.user);
@@ -107,7 +114,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               toast({
                 variant: "destructive",
                 title: "Authentication failed",
-                description: error instanceof Error ? error.message : "Could not sign in with Google",
+                description: error instanceof Error 
+                  ? error.message 
+                  : "Could not sign in with Google. Make sure your Google Cloud Console project has the correct authorized domains.",
               });
             }
           },
@@ -169,7 +178,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             try {
               console.log('Google credential received, authenticating with backend...');
               const response = await apiRequest('POST', '/api/auth/google', { credential });
+              
+              if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.message || 'Backend authentication failed');
+              }
+              
               const data = await response.json();
+              console.log('Authentication successful, user data:', data);
               
               setIsAuthenticated(true);
               setUser(data.user);
@@ -179,6 +195,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               setLocation('/dashboard');
             } catch (error) {
               console.error('Authentication error with backend:', error);
+              
+              // Show a more specific error message
+              toast({
+                variant: "destructive",
+                title: "Authentication failed",
+                description: "Your Replit domain may not be authorized in the Google Cloud Console. Please check that it's added to the authorized domains list."
+              });
+              
               reject(error);
             }
           },
