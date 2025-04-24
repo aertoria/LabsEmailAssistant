@@ -7,6 +7,7 @@ export interface IStorage {
   getUser(id: number): Promise<User | undefined>;
   getUserByUsername(username: string): Promise<User | undefined>;
   createUser(user: InsertUser): Promise<User>;
+  updateUserTokens(userId: number, accessToken: string, refreshToken: string, expiryDate?: Date): Promise<User>;
 }
 
 export class MemStorage implements IStorage {
@@ -28,11 +29,45 @@ export class MemStorage implements IStorage {
     );
   }
 
-  async createUser(insertUser: InsertUser): Promise<User> {
+  async createUser(insertUser: any): Promise<User> {
     const id = this.currentId++;
-    const user: User = { ...insertUser, id };
+    
+    // Create a complete user object with all required fields
+    const user: User = {
+      id,
+      username: insertUser.username,
+      password: insertUser.password,
+      googleId: insertUser.googleId || null,
+      email: insertUser.email || null,
+      name: insertUser.name || null,
+      accessToken: insertUser.accessToken || null,
+      refreshToken: insertUser.refreshToken || null,
+      tokenExpiry: insertUser.tokenExpiry || null,
+      historyId: insertUser.historyId || null
+    };
+    
     this.users.set(id, user);
     return user;
+  }
+  
+  async updateUserTokens(userId: number, accessToken: string, refreshToken: string, expiryDate?: Date): Promise<User> {
+    const user = await this.getUser(userId);
+    if (!user) {
+      throw new Error(`User with ID ${userId} not found`);
+    }
+    
+    // Update user with tokens
+    const updatedUser: User = {
+      ...user,
+      accessToken,
+      refreshToken,
+      tokenExpiry: expiryDate || null,
+    };
+    
+    // Save updated user
+    this.users.set(userId, updatedUser);
+    
+    return updatedUser;
   }
 }
 

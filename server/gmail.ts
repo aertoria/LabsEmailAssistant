@@ -2,6 +2,20 @@ import { Express, Request, Response } from "express";
 import { IStorage } from "./storage";
 import { google } from "googleapis";
 import { OAuth2Client } from "google-auth-library";
+import { User } from "@shared/schema";
+
+// Extend the Express Request type to include our user property
+declare global {
+  namespace Express {
+    interface Request {
+      user?: User;
+      session: {
+        userId?: number;
+        destroy: (callback: (err: Error) => void) => void;
+      } & Record<string, any>;
+    }
+  }
+}
 
 // Create OAuth client
 const createOAuth2Client = () => {
@@ -54,19 +68,31 @@ export function setupGmail(app: Express, storage: IStorage) {
     return google.gmail({ version: "v1", auth: oauth2Client });
   };
 
-  // List messages
+  // List messages - limit to 200 emails
   app.get("/api/gmail/messages", authMiddleware, async (req: Request, res: Response) => {
     try {
       const page = parseInt(req.query.page as string) || 1;
       const pageSize = 50;
+      const maxEmails = 200; // Maximum emails to fetch as requested
       
+      // Only process first 4 pages (200 emails total)
+      if (page > 4) {
+        return res.status(200).json({
+          messages: [],
+          nextPageToken: null,
+          totalCount: maxEmails,
+          maxReached: true
+        });
+      }
+      
+      console.log(`Fetching Gmail messages, page ${page} (max ${maxEmails} emails total)`);
       const gmail = await getGmailClient(req.user);
       
       // Get messages list
       const response = await gmail.users.messages.list({
         userId: "me",
         maxResults: pageSize,
-        pageToken: page > 1 ? `page${page}` : undefined, // This would normally come from previous response
+        pageToken: page > 1 ? req.query.pageToken as string : undefined,
       });
 
       // Get details for each message
@@ -101,10 +127,17 @@ export function setupGmail(app: Express, storage: IStorage) {
         }
       }
 
+      // Determine if we've reached maximum emails (200)
+      const totalFetched = page * pageSize;
+      const reachedMax = totalFetched >= maxEmails;
+      
       res.status(200).json({
         messages,
-        nextPageToken: response.data.nextPageToken,
-        totalCount: 120, // This would normally come from API or be calculated
+        nextPageToken: reachedMax ? null : response.data.nextPageToken,
+        totalCount: Math.min(response.data.resultSizeEstimate || 200, maxEmails),
+        maxReached: reachedMax,
+        page: page,
+        maxPages: Math.ceil(maxEmails / pageSize)
       });
     } catch (error) {
       console.error("Gmail messages error:", error);
