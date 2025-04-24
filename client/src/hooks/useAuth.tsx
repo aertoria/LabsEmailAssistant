@@ -24,6 +24,7 @@ const loadGoogleAuthScript = () => {
   script.src = 'https://accounts.google.com/gsi/client';
   script.async = true;
   script.defer = true;
+  script.id = 'google-auth-script';
   script.onload = () => {
     console.log('Google Identity Services script loaded successfully');
   };
@@ -34,12 +35,15 @@ const loadGoogleAuthScript = () => {
 };
 
 // Execute script loading immediately
-loadGoogleAuthScript();
+if (typeof window !== 'undefined') {
+  loadGoogleAuthScript();
+}
 
 // Function to initialize Google auth - kept for compatibility
 export function initGoogleAuth() {
-  // Just for backwards compatibility
-  loadGoogleAuthScript();
+  if (typeof window !== 'undefined') {
+    loadGoogleAuthScript();
+  }
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -141,20 +145,72 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
 
       try {
+        // Using a custom approach instead of the prompt method
+        // Create a temporary button and trigger the Google sign-in process
+        const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
+        
+        console.log('Setting up Google Authentication with client ID:', 
+          googleClientId ? 'Valid client ID exists' : 'Missing client ID');
+          
+        if (!googleClientId) {
+          reject(new Error('Missing Google Client ID'));
+          return;
+        }
+        
+        // Initialize with custom parameters
+        window.google.accounts.id.initialize({
+          client_id: googleClientId,
+          callback: async ({ credential }: any) => {
+            if (!credential) {
+              reject(new Error('No credential received from Google'));
+              return;
+            }
+            
+            try {
+              console.log('Google credential received, authenticating with backend...');
+              const response = await apiRequest('POST', '/api/auth/google', { credential });
+              const data = await response.json();
+              
+              setIsAuthenticated(true);
+              setUser(data.user);
+              resolve();
+              
+              // Navigate after authentication
+              setLocation('/dashboard');
+            } catch (error) {
+              console.error('Authentication error with backend:', error);
+              reject(error);
+            }
+          },
+          prompt_parent_id: 'g_id_onload',
+          cancel_on_tap_outside: true
+        });
+        
+        // Trigger the One Tap UI
         window.google.accounts.id.prompt((notification: any) => {
-          if (notification.isNotDisplayed()) {
-            reject(new Error('Google sign-in was not displayed: ' + notification.getNotDisplayedReason()));
-          } else if (notification.isSkippedMoment()) {
-            reject(new Error('Google sign-in was skipped: ' + notification.getSkippedReason()));
-          } else if (notification.isDismissedMoment()) {
-            reject(new Error('Google sign-in was dismissed: ' + notification.getDismissedReason()));
-          } else {
-            // This is when sign-in is successful but doesn't mean we are authenticated yet
-            // The callback from initialize will handle the authentication
-            resolve();
+          console.log('Google prompt notification:', notification);
+          
+          if (notification.isNotDisplayed() || notification.isSkippedMoment()) {
+            console.log('Google One Tap is not displayed or skipped. Showing manual sign-in button.');
+            // If One Tap doesn't work, create a sign-in button manually
+            const buttonContainer = document.getElementById('google-signin-button-container');
+            if (buttonContainer) {
+              buttonContainer.innerHTML = '';
+              window.google.accounts.id.renderButton(buttonContainer, {
+                type: 'standard',
+                theme: 'outline',
+                size: 'large',
+                text: 'signin_with',
+                shape: 'rectangular',
+                logo_alignment: 'left',
+                width: 250
+              });
+              console.log('Google Sign-In button created');
+            }
           }
         });
       } catch (error) {
+        console.error('Error in Google Sign-In process:', error);
         reject(error);
       }
     });

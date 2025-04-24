@@ -10,6 +10,7 @@ export default function Login() {
   const [_, setLocation] = useLocation();
   const { toast } = useToast();
   const buttonRef = useRef<HTMLButtonElement>(null);
+  const googleButtonRef = useRef<HTMLDivElement>(null);
 
   // Redirect if already authenticated
   useEffect(() => {
@@ -18,23 +19,19 @@ export default function Login() {
     }
   }, [isAuthenticated, setLocation]);
 
-  // Initialize Google Sign-In button
-  useEffect(() => {
-    // Ensure Google API is loaded
-    const checkGoogleApi = setInterval(() => {
-      if (window.google && window.google.accounts && window.google.accounts.id) {
-        clearInterval(checkGoogleApi);
-        console.log("Google Identity Services is ready");
-      }
-    }, 100);
-
-    return () => clearInterval(checkGoogleApi);
-  }, []);
-
+  // Create a simple Google Sign-In function
   const onGoogleSignInClick = async () => {
     try {
       setIsLoading(true);
+      
+      // First, check if Google is available
+      if (!window.google || !window.google.accounts) {
+        throw new Error("Google authentication services not available. Please try again later.");
+      }
+      
+      console.log("Attempting Google sign-in...");
       await handleGoogleSignIn();
+      
     } catch (error) {
       console.error("Google sign-in error:", error);
       toast({
@@ -78,6 +75,9 @@ export default function Login() {
                 
                 {/* This div will be used for the Google One Tap sign-in */}
                 <div id="g_id_onload" data-client_id={import.meta.env.VITE_GOOGLE_CLIENT_ID} data-auto_select="false"></div>
+                
+                {/* This div will be used for the manual Google Sign-In button if One Tap fails */}
+                <div id="google-signin-button-container" className="mt-4"></div>
               </div>
 
               {isLoading && (
