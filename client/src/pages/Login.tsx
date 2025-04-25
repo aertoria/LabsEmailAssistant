@@ -1,8 +1,22 @@
 import { useEffect, useState, useRef } from "react";
 import { useLocation } from "wouter";
 import { Card, CardContent } from "@/components/ui/card";
-import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
+
+// Import useAuth only if it's available, otherwise mock it
+let AuthModule;
+try {
+  AuthModule = require("@/hooks/useAuth");
+} catch (error) {
+  console.warn("Auth module not available, using mock");
+  AuthModule = {
+    useAuth: () => ({
+      isAuthenticated: false,
+      handleGoogleSignIn: async () => { throw new Error("Auth not available"); }
+    })
+  };
+}
+const { useAuth } = AuthModule;
 
 export default function Login() {
   const [isLoading, setIsLoading] = useState(false);

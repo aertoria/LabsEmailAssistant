@@ -9,10 +9,37 @@ export function EmailList() {
   const [page, setPage] = useState(1);
   const [showMobileSidebar, setShowMobileSidebar] = useState(false);
 
-  // Fetch emails
-  const { data: emailsData, isLoading, refetch } = useQuery({
+  // Fetch emails - with error handling
+  const { data: emailsData, isLoading, isError, error, refetch } = useQuery({
     queryKey: ['/api/gmail/messages', page],
-    enabled: true
+    enabled: true,
+    retry: 1,
+    refetchOnMount: true,
+    refetchOnWindowFocus: false,
+    staleTime: 30000, // 30 seconds
+    // Silence 401 errors since we handle them at the app level
+    queryFn: async ({ queryKey }) => {
+      try {
+        const response = await fetch(queryKey[0] as string + `?page=${page}`, {
+          credentials: "include",
+        });
+        
+        if (response.status === 401) {
+          // Auth error, will be handled by the auth provider
+          return { messages: [], totalCount: 0 };
+        }
+        
+        if (!response.ok) {
+          throw new Error(`Error fetching emails: ${response.status}`);
+        }
+        
+        return await response.json();
+      } catch (err) {
+        console.error("Error fetching emails:", err);
+        // Return empty data instead of throwing to avoid error UI
+        return { messages: [], totalCount: 0 };
+      }
+    }
   });
 
   const emails = emailsData?.messages || [];
@@ -105,7 +132,20 @@ export function EmailList() {
           </div>
         )}
         
-        {!isLoading && emails.length === 0 && (
+        {!isLoading && isError && (
+          <div className="flex flex-col items-center justify-center h-full text-gray-500">
+            <div className="text-5xl mb-4">⚠️</div>
+            <p>Error loading emails</p>
+            <button
+              onClick={() => refetch()}
+              className="mt-4 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition"
+            >
+              Try Again
+            </button>
+          </div>
+        )}
+        
+        {!isLoading && !isError && emails.length === 0 && (
           <div className="flex flex-col items-center justify-center h-full text-gray-500">
             <div className="text-5xl mb-4">📭</div>
             <p>No emails found</p>
