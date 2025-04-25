@@ -76,7 +76,38 @@ export default function Dashboard() {
     queryKey: ['/api/gmail/sync/status'],
     staleTime: 5000,
     refetchInterval: 5000,
-    enabled: isAuthenticated
+    enabled: isAuthenticated,
+    queryFn: async ({ queryKey }) => {
+      try {
+        // Check if we have a demo user in localStorage
+        const storedUser = localStorage.getItem('gmail_app_user');
+        const isDemoMode = storedUser !== null;
+        
+        const response = await fetch(queryKey[0] as string, {
+          credentials: "include",
+          headers: isDemoMode ? { 'X-Demo-Mode': 'true' } : {}
+        });
+        
+        if (!response.ok) {
+          return {
+            isActive: false,
+            progress: 0, 
+            total: 0,
+            processed: 0
+          };
+        }
+        
+        return await response.json();
+      } catch (err) {
+        console.error("Error fetching sync status:", err);
+        return {
+          isActive: false,
+          progress: 0, 
+          total: 0,
+          processed: 0
+        };
+      }
+    }
   });
 
   // Redirect if not authenticated

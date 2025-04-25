@@ -55,8 +55,11 @@ export function EmailItem({ email, isSelected, onSelect }: EmailItemProps) {
     console.log('Open email:', email.id);
   };
 
-  // Format the date
-  const formatDate = (dateString: string) => {
+  // Format the date - handle different date field names
+  const formatDate = (email: any) => {
+    // Check for the different possible date field names
+    const dateString = email.receivedAt || email.date || new Date().toISOString();
+    
     const date = new Date(dateString);
     const now = new Date();
     
@@ -101,7 +104,7 @@ export function EmailItem({ email, isSelected, onSelect }: EmailItemProps) {
           <div className="flex items-baseline justify-between mb-1">
             <div className="font-medium text-gray-900 truncate">{email.from}</div>
             <div className="text-xs text-gray-500 whitespace-nowrap ml-2">
-              {formatDate(email.receivedAt)}
+              {formatDate(email)}
             </div>
           </div>
           

@@ -20,12 +20,25 @@ export function EmailList() {
     // Silence 401 errors since we handle them at the app level
     queryFn: async ({ queryKey }) => {
       try {
-        const response = await fetch(queryKey[0] as string + `?page=${page}`, {
+        // Check if we have a demo user in localStorage
+        const storedUser = localStorage.getItem('gmail_app_user');
+        const isDemoMode = storedUser !== null;
+        
+        // Add demo parameter to request if we're in demo mode
+        const url = isDemoMode 
+          ? `${queryKey[0]}?page=${page}&demo=true` 
+          : `${queryKey[0]}?page=${page}`;
+        
+        console.log("Fetching emails from:", url);
+        
+        const response = await fetch(url, {
           credentials: "include",
+          headers: isDemoMode ? { 'X-Demo-Mode': 'true' } : {}
         });
         
         if (response.status === 401) {
           // Auth error, will be handled by the auth provider
+          console.warn("Unauthorized when fetching emails, returning empty list");
           return { messages: [], totalCount: 0 };
         }
         
