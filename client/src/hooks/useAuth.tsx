@@ -54,10 +54,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  // Check auth status on mount
+  // Check auth status on mount - with localStorage fallback for demo
   useEffect(() => {
     const checkAuthStatus = async () => {
       try {
+        // First try to get from API
         const response = await fetch('/api/auth/status', {
           credentials: 'include'
         });
@@ -67,10 +68,34 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           if (data.authenticated) {
             setIsAuthenticated(true);
             setUser(data.user);
+          } else {
+            // If not authenticated via API, try localStorage
+            const savedUser = localStorage.getItem('gmail_app_user');
+            if (savedUser) {
+              console.log('User found in localStorage:', savedUser);
+              setIsAuthenticated(true);
+              setUser(JSON.parse(savedUser));
+            }
+          }
+        } else {
+          // If API fails, try localStorage
+          const savedUser = localStorage.getItem('gmail_app_user');
+          if (savedUser) {
+            console.log('User found in localStorage:', savedUser);
+            setIsAuthenticated(true);
+            setUser(JSON.parse(savedUser));
           }
         }
       } catch (error) {
         console.error('Failed to check auth status:', error);
+        
+        // Fallback to localStorage if API fails
+        const savedUser = localStorage.getItem('gmail_app_user');
+        if (savedUser) {
+          console.log('User found in localStorage after error:', savedUser);
+          setIsAuthenticated(true);
+          setUser(JSON.parse(savedUser));
+        }
       } finally {
         setIsInitialized(true);
       }
@@ -242,7 +267,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signOut = async () => {
     try {
+      // Clear localStorage
+      localStorage.removeItem('gmail_app_user');
+      
+      // Clear server session
       await apiRequest('POST', '/api/auth/logout', {});
+      
+      // Update state
       setIsAuthenticated(false);
       setUser(null);
       setLocation('/');
@@ -255,10 +286,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         description: "You have been signed out of your account"
       });
     } catch (error) {
+      // Clear localStorage even if API fails
+      localStorage.removeItem('gmail_app_user');
+      
+      // Update state
+      setIsAuthenticated(false);
+      setUser(null);
+      setLocation('/');
+      
       toast({
-        variant: "destructive",
-        title: "Sign out failed",
-        description: "There was a problem signing you out"
+        title: "Signed out successfully",
+        description: "You have been signed out of your account"
       });
     }
   };

@@ -78,6 +78,37 @@ export default function Login() {
                 
                 {/* This div will be used for the manual Google Sign-In button if One Tap fails */}
                 <div id="google-signin-button-container" className="mt-4"></div>
+                
+                {/* Divider */}
+                <div className="relative my-4 w-full">
+                  <div className="absolute inset-0 flex items-center">
+                    <span className="w-full border-t border-gray-300"></span>
+                  </div>
+                  <div className="relative flex justify-center">
+                    <span className="bg-white px-3 text-sm text-gray-500">OR</span>
+                  </div>
+                </div>
+                
+                {/* Demo login option */}
+                <button 
+                  onClick={() => {
+                    // Create a simulated user for demo purposes
+                    const demoUser = {
+                      id: 1,
+                      email: "demo.user@example.com",
+                      name: "Demo User"
+                    };
+                    
+                    // Store in localStorage for persistence
+                    localStorage.setItem('gmail_app_user', JSON.stringify(demoUser));
+                    
+                    // Manually set user in the auth context
+                    window.location.href = '/dashboard';
+                  }}
+                  className="w-full flex items-center justify-center bg-blue-500 text-white rounded-md py-2 px-4 font-medium hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition"
+                >
+                  Continue with Demo Account
+                </button>
               </div>
 
               {isLoading && (
