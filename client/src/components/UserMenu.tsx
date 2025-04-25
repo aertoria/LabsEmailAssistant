@@ -8,15 +8,15 @@ import {
   DropdownMenuTrigger 
 } from '@/components/ui/dropdown-menu';
 import { ChevronDown } from 'lucide-react';
-import { useAuth } from '@/hooks/useAuth';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 
 interface UserMenuProps {
-  user: User;
+  user: any; // Change from User to any to allow mock users
+  onSignOut?: () => void; // Add optional sign out callback
 }
 
-export function UserMenu({ user }: UserMenuProps) {
-  const { signOut } = useAuth();
+export function UserMenu({ user, onSignOut }: UserMenuProps) {
+  // No longer use useAuth
 
   const getUserInitials = (name: string | null | undefined): string => {
     if (!name) return 'U';
@@ -28,7 +28,12 @@ export function UserMenu({ user }: UserMenuProps) {
   };
 
   const handleSignOut = async () => {
-    await signOut();
+    if (onSignOut) {
+      await onSignOut();
+    } else {
+      // Fallback: just redirect to login
+      window.location.href = '/';
+    }
   };
 
   return (

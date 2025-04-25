@@ -28,8 +28,32 @@ const createOAuth2Client = () => {
 
 // Setup Gmail API routes
 export function setupGmail(app: Express, storage: IStorage) {
-  // Authentication middleware
+  // Authentication middleware - supports both session and demo mode
   const authMiddleware = async (req: Request, res: Response, next: Function) => {
+    // Check for demo mode header or query parameter
+    const isDemoMode = 
+      req.headers['x-demo-mode'] === 'true' || 
+      req.query.demo === 'true';
+    
+    if (isDemoMode) {
+      console.log("Using demo mode authentication");
+      // Create a demo user for the request
+      req.user = {
+        id: 999,
+        username: "demo.user",
+        email: "demo.user@example.com",
+        name: "Demo User",
+        accessToken: "demo-token",
+        refreshToken: "demo-refresh-token",
+        tokenExpiry: null,
+        password: null,
+        googleId: null,
+        historyId: null
+      };
+      return next();
+    }
+    
+    // Regular session-based authentication
     if (!req.session.userId) {
       return res.status(401).json({
         message: "Unauthorized",
@@ -73,97 +97,20 @@ export function setupGmail(app: Express, storage: IStorage) {
     try {
       const page = parseInt(req.query.page as string) || 1;
       const pageSize = 50;
-      const maxEmails = 200; // Maximum emails to fetch as requested
       
-      // Only process first 4 pages (200 emails total)
-      if (page > 4) {
-        return res.status(200).json({
-          messages: [],
-          nextPageToken: null,
-          totalCount: maxEmails,
-          maxReached: true
-        });
-      }
+      console.log(`Fetching page ${page} of emails from mock service`);
       
-      console.log(`Providing sample emails for page ${page} (max ${maxEmails} emails total)`);
+      // Use our new storage method to get consistent mock emails
+      const { messages, totalCount } = await storage.getMockEmails(page, pageSize);
       
-      // Generate sample messages for demonstration
-      const messages = [];
-      const startIdx = (page - 1) * pageSize;
-      const endIdx = Math.min(startIdx + pageSize, maxEmails);
-      
-      for (let i = startIdx; i < endIdx; i++) {
-        const isRead = Math.random() > 0.3; // 70% read, 30% unread
-        const isStarred = Math.random() > 0.8; // 20% starred
-        const date = new Date();
-        date.setDate(date.getDate() - Math.floor(Math.random() * 30)); // Random date within last 30 days
-        
-        // Various sample sender domains
-        const domains = ['gmail.com', 'yahoo.com', 'outlook.com', 'hotmail.com', 'company.com', 'example.org'];
-        const randomDomain = domains[Math.floor(Math.random() * domains.length)];
-        
-        // Sample sender names
-        const senderNames = ['John Smith', 'Jane Doe', 'Newsletter', 'Support Team', 'Notifications', 'Calendar', 'Your Bank'];
-        const randomSender = senderNames[Math.floor(Math.random() * senderNames.length)];
-        
-        // Sample subject prefixes
-        const subjectPrefixes = ['Important: ', 'Re: ', 'Fwd: ', '', 'Action required: ', 'Update on ', 'Invitation: '];
-        const randomPrefix = subjectPrefixes[Math.floor(Math.random() * subjectPrefixes.length)];
-        
-        // Sample subject contents
-        const subjectContents = [
-          'Meeting tomorrow', 
-          'Project status update', 
-          'Your monthly statement', 
-          'Weekly newsletter', 
-          'Account security alert',
-          'Special offer for you',
-          'Document shared with you'
-        ];
-        const randomSubject = subjectContents[Math.floor(Math.random() * subjectContents.length)];
-        
-        // Sample snippets
-        const snippets = [
-          'Hi there, I wanted to follow up on our conversation from last week...',
-          'Please find attached the document we discussed during our meeting...',
-          'This is a friendly reminder about your upcoming appointment...',
-          'We noticed some unusual activity on your account and wanted to verify...',
-          'Thank you for your recent purchase! Here is your receipt...',
-          'The team has made significant progress on the project and I wanted to share...',
-          'I hope this email finds you well. I wanted to discuss the recent changes...'
-        ];
-        const randomSnippet = snippets[Math.floor(Math.random() * snippets.length)];
-        
-        messages.push({
-          id: `msg-${i + 1}`,
-          threadId: `thread-${Math.ceil((i + 1) / (1 + Math.floor(Math.random() * 3)))}`, // Group some emails into threads
-          from: `${randomSender} <${randomSender.toLowerCase().replace(' ', '.')}@${randomDomain}>`,
-          subject: `${randomPrefix}${randomSubject}`,
-          snippet: randomSnippet,
-          receivedAt: date.toISOString(),
-          isRead: isRead,
-          isStarred: isStarred,
-          labelIds: [
-            isRead ? 'INBOX' : 'UNREAD',
-            isStarred ? 'STARRED' : '',
-            Math.random() > 0.9 ? 'IMPORTANT' : '',
-            Math.random() > 0.9 ? 'CATEGORY_PERSONAL' : '',
-            Math.random() > 0.9 ? 'CATEGORY_SOCIAL' : '',
-            Math.random() > 0.9 ? 'CATEGORY_PROMOTIONS' : '',
-            Math.random() > 0.9 ? 'CATEGORY_UPDATES' : ''
-          ].filter(Boolean)
-        });
-      }
-
       // Calculate pagination info
-      const totalEmails = maxEmails;
-      const totalPages = Math.ceil(totalEmails / pageSize);
+      const totalPages = Math.ceil(totalCount / pageSize);
       const hasNextPage = page < totalPages;
       
       res.status(200).json({
         messages,
         nextPageToken: hasNextPage ? `page${page + 1}` : null,
-        totalCount: totalEmails,
+        totalCount,
         maxReached: page >= 4,
         page: page,
         maxPages: totalPages

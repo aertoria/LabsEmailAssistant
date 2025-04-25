@@ -6,9 +6,10 @@ import { User } from "@shared/schema";
 
 interface HeaderProps {
   user: User;
+  onSignOut?: () => void;
 }
 
-export function Header({ user }: HeaderProps) {
+export function Header({ user, onSignOut }: HeaderProps) {
   const [searchQuery, setSearchQuery] = useState("");
 
   const handleSearch = (e: React.FormEvent) => {
@@ -46,7 +47,7 @@ export function Header({ user }: HeaderProps) {
             </span>
           </div>
           
-          <UserMenu user={user} />
+          <UserMenu user={user} onSignOut={onSignOut} />
         </div>
       </div>
     </header>

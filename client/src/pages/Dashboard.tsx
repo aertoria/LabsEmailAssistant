@@ -92,14 +92,16 @@ export default function Dashboard() {
 
   return (
     <div className="h-screen flex flex-col">
-      <Header user={user} />
+      <Header user={user} onSignOut={handleSignOut} />
       
       <main className="flex-1 flex overflow-hidden">
         <Sidebar />
         <EmailList />
       </main>
       
-      {syncStatus?.isActive && <SyncStatus status={syncStatus} />}
+      {syncStatus && syncStatus.isActive && (
+        <SyncStatus status={syncStatus} />
+      )}
     </div>
   );
 }
