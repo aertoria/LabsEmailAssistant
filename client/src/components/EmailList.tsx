@@ -9,14 +9,15 @@ export function EmailList() {
   const [page, setPage] = useState(1);
   const [showMobileSidebar, setShowMobileSidebar] = useState(false);
 
-  // Fetch emails - with error handling
+  // Fetch emails - with error handling and optimized refetching
   const { data: emailsData, isLoading, isError, error, refetch } = useQuery({
     queryKey: ['/api/gmail/messages', page],
     enabled: true,
     retry: 1,
     refetchOnMount: true,
     refetchOnWindowFocus: false,
-    staleTime: 30000, // 30 seconds
+    refetchInterval: 60000, // Only refresh every minute
+    staleTime: 60000, // 60 seconds
     // Silence 401 errors since we handle them at the app level
     queryFn: async ({ queryKey }) => {
       try {

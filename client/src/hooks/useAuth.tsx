@@ -57,9 +57,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   // Check auth status on mount - with localStorage fallback for demo
   useEffect(() => {
+    // Skip if already initialized
+    if (isInitialized) return;
+    
     const checkAuthStatus = async () => {
       try {
-        // First try to get from API
+        // Always check localStorage first for faster loading
+        const savedUser = localStorage.getItem('gmail_app_user');
+        if (savedUser) {
+          console.log('User found in localStorage:', savedUser);
+          setIsAuthenticated(true);
+          setUser(JSON.parse(savedUser));
+          setIsInitialized(true);
+          return; // Return early with localStorage user
+        }
+        
+        // If no localStorage user, try API
         const response = await fetch('/api/auth/status', {
           credentials: 'include'
         });
@@ -69,17 +82,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           if (data.authenticated) {
             setIsAuthenticated(true);
             setUser(data.user);
-            return; // Return early if authenticated via API
+            setIsInitialized(true);
+            return;
           }
         }
         
-        // Check localStorage as fallback
-        const savedUser = localStorage.getItem('gmail_app_user');
-        if (savedUser) {
-          console.log('User found in localStorage:', savedUser);
-          setIsAuthenticated(true);
-          setUser(JSON.parse(savedUser));
-        }
+        // No user found in either source
+        setIsInitialized(true);
       } catch (error) {
         console.error('Failed to check auth status:', error);
         
@@ -90,13 +99,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           setIsAuthenticated(true);
           setUser(JSON.parse(savedUser));
         }
-      } finally {
+        
         setIsInitialized(true);
       }
     };
 
     checkAuthStatus();
-  }, []);
+  }, [isInitialized]);
 
   // Initialize Google Sign-In on mount - only once
   useEffect(() => {

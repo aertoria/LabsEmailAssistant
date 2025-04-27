@@ -29,41 +29,50 @@ export default function Dashboard() {
   const [localUser, setLocalUser] = useState<any>(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   
-  // On first render only, check auth status
+  // Check auth status once at initialization
   useEffect(() => {
     if (initialized) return;
     
-    // Check for authenticated user in local storage first
-    const storedUser = localStorage.getItem('gmail_app_user');
-    let hasLocalUser = false;
-    
-    if (storedUser) {
-      try {
-        const parsedUser = JSON.parse(storedUser);
-        setLocalUser(parsedUser);
-        setIsAuthenticated(true);
-        hasLocalUser = true;
-      } catch (e) {
-        console.error("Failed to parse stored user:", e);
+    const checkAuthentication = () => {
+      // Check for authenticated user in local storage first
+      const storedUser = localStorage.getItem('gmail_app_user');
+      let hasLocalUser = false;
+      
+      if (storedUser) {
+        try {
+          const parsedUser = JSON.parse(storedUser);
+          setLocalUser(parsedUser);
+          setIsAuthenticated(true);
+          hasLocalUser = true;
+          console.log("Using authenticated user from localStorage");
+        } catch (e) {
+          console.error("Failed to parse stored user:", e);
+        }
       }
-    }
+      
+      // If we have auth from provider, use that
+      if (authProviderAuthenticated && authUser) {
+        setIsAuthenticated(true);
+        setLocalUser(authUser);
+        console.log("Using authenticated user from auth provider");
+        hasLocalUser = true;
+      }
+      
+      // If no auth from either source, redirect once
+      if (!hasLocalUser && !authProviderAuthenticated) {
+        console.log("No authentication found, redirecting to login");
+        window.location.href = '/'; // Hard navigation to avoid React state issues
+        return false;
+      }
+      
+      return true;
+    };
     
-    // If no local user and not authenticated via provider, redirect once
-    if (!hasLocalUser && !authProviderAuthenticated) {
-      window.location.href = '/'; // Hard navigation to avoid React state issues
-      return;
+    // If authentication check succeeds, mark as initialized
+    if (checkAuthentication()) {
+      setInitialized(true);
     }
-    
-    setInitialized(true);
-  }, [authProviderAuthenticated, initialized]);
-  
-  // Update from auth provider when it changes
-  useEffect(() => {
-    if (authProviderAuthenticated && authUser) {
-      setIsAuthenticated(true);
-      setLocalUser(authUser);
-    }
-  }, [authProviderAuthenticated, authUser]);
+  }, [authProviderAuthenticated, authUser, initialized]);
   
   // Use whichever user we have
   const user = authUser || localUser;
