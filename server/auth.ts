@@ -9,9 +9,13 @@ const createOAuth2Client = () => {
   // Get origin for redirect URI
   let redirectUri = process.env.REDIRECT_URI;
   if (!redirectUri) {
-    // Must exactly match what's configured in Google Cloud Console
-    // The error indicates we need to use a specific redirect URI
-    redirectUri = "https://workspace.castives.repl.co/api/auth/callback";
+    // Use APP_URL environment variable if available
+    if (process.env.APP_URL) {
+      redirectUri = `${process.env.APP_URL}/api/auth/callback`;
+    } else {
+      // Fallback to a configurable URI - change this to your actual deployment URL
+      redirectUri = `${process.env.HOST || 'http://localhost:3000'}/api/auth/callback`;
+    }
   }
   
   console.log('Creating OAuth2 client with redirect URI:', redirectUri);
@@ -139,17 +143,34 @@ export function setupAuth(app: Express, storage: IStorage) {
     const { code } = req.query;
     
     if (!code || typeof code !== "string") {
+      console.error("OAuth callback received without code");
       return res.status(400).json({
         message: "Missing authorization code",
       });
     }
 
     try {
+      console.log("OAuth callback started with code");
       const oauth2Client = createOAuth2Client();
       
       // Exchange code for tokens
+      console.log("Exchanging code for tokens...");
       const { tokens } = await oauth2Client.getToken(code);
       
+      console.log("Token exchange completed:", {
+        hasAccessToken: !!tokens.access_token,
+        hasRefreshToken: !!tokens.refresh_token,
+        expiryDate: tokens.expiry_date,
+        scope: tokens.scope
+      });
+
+      if (!tokens.access_token || !tokens.refresh_token) {
+        console.error("Missing required tokens after exchange");
+        return res.status(400).json({
+          message: "Failed to obtain required access tokens",
+        });
+      }
+
       if (!req.session.userId) {
         return res.status(401).json({
           message: "User not authenticated",

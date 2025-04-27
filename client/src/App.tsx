@@ -17,9 +17,43 @@ function AuthCallback() {
   const [_, setLocation] = useLocation();
   
   useEffect(() => {
-    // Check if this is a Google auth callback with a code parameter
+    // Check if this is a Google auth callback with a code parameter or success flag
     const urlParams = new URLSearchParams(window.location.search);
     const code = urlParams.get('code');
+    const success = urlParams.get('success');
+    
+    if (success === 'true') {
+      console.log("Authentication success detected in callback");
+      toast({
+        title: "Authentication Complete",
+        description: "You've successfully authenticated with Google Gmail!",
+      });
+      
+      // Fetch updated user data before redirecting to ensure session is valid
+      fetch('/api/auth/status', {
+        credentials: 'include'
+      })
+      .then(response => response.json())
+      .then(data => {
+        if (data.authenticated && data.user) {
+          // Store user in localStorage for persistence
+          localStorage.setItem('gmail_app_user', JSON.stringify(data.user));
+          console.log("User authenticated and stored:", data.user);
+        }
+        
+        // Clean up URL and navigate to dashboard
+        window.history.replaceState({}, document.title, "/dashboard");
+        
+        // Force reload to ensure everything is fresh
+        window.location.href = "/dashboard";
+      })
+      .catch(error => {
+        console.error("Error fetching auth status:", error);
+        // Navigate to dashboard anyway
+        window.location.href = "/dashboard";
+      });
+      return;
+    }
     
     if (code) {
       toast({

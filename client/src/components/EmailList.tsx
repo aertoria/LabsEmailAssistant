@@ -8,16 +8,18 @@ export function EmailList() {
   const [selectedEmails, setSelectedEmails] = useState<string[]>([]);
   const [page, setPage] = useState(1);
   const [showMobileSidebar, setShowMobileSidebar] = useState(false);
+  const [isRefetching, setIsRefetching] = useState(false);
 
   // Fetch emails - with error handling and no automatic refetching
   const { data: emailsData, isLoading, isError, error, refetch } = useQuery({
     queryKey: ['/api/gmail/messages', page],
     enabled: true,
-    retry: 1,
-    refetchOnMount: false, // Don't refetch on mount
+    retry: 3, // Increase retry attempts
+    retryDelay: (attempt) => Math.min(1000 * 2 ** attempt, 30000), // Exponential backoff
+    refetchOnMount: true, // Always refetch when component mounts
     refetchOnWindowFocus: false,
     refetchInterval: false, // Don't automatically refetch - only when user clicks refresh
-    staleTime: Infinity, // Never consider the data stale
+    staleTime: 30000, // Consider data stale after 30 seconds
     // Silence 401 errors since we handle them at the app level
     queryFn: async ({ queryKey }) => {
       try {
@@ -25,13 +27,30 @@ export function EmailList() {
         const url = `${queryKey[0]}?page=${page}`;
         console.log("Fetching emails from:", url, "(REAL GMAIL DATA)");
         
+        // Show refetching state
+        setIsRefetching(true);
+        
         const response = await fetch(url, {
           credentials: "include"
         });
         
+        // Hide refetching state
+        setIsRefetching(false);
+        
         if (response.status === 401) {
           // Auth error, will be handled by the auth provider
-          console.warn("Unauthorized when fetching emails, returning empty list");
+          console.warn("Unauthorized when fetching emails - auth issue");
+          
+          // If we get a token_missing error, we need to redirect to login
+          const errorData = await response.json();
+          if (errorData.error === "token_missing" || errorData.error === "token_expired") {
+            console.log("Token missing or expired, redirecting to login");
+            // Clear local storage and redirect
+            localStorage.removeItem('gmail_app_user');
+            window.location.href = "/";
+            return { messages: [], totalCount: 0 };
+          }
+          
           return { messages: [], totalCount: 0 };
         }
         
@@ -51,11 +70,19 @@ export function EmailList() {
         };
       } catch (err) {
         console.error("Error fetching emails:", err);
+        setIsRefetching(false);
         // Return empty data instead of throwing to avoid error UI
         return { messages: [], totalCount: 0 };
       }
     }
   });
+
+  // Force refetch on component mount
+  useEffect(() => {
+    // Initial fetch
+    console.log("EmailList mounted, forcing email fetch");
+    refreshEmails();
+  }, []);
 
   const emails = emailsData?.messages || [];
   const totalCount = emailsData?.totalCount || 0;
@@ -77,7 +104,11 @@ export function EmailList() {
   };
 
   const refreshEmails = () => {
-    refetch();
+    console.log("Manual refresh triggered");
+    setIsRefetching(true);
+    refetch().finally(() => {
+      setIsRefetching(false);
+    });
   };
 
   return (

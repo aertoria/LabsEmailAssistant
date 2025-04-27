@@ -73,25 +73,42 @@ export function setupGmail(app: Express, storage: IStorage) {
   
   // Authentication middleware - requires real session authentication
   const authMiddleware = async (req: Request, res: Response, next: Function) => {
+    console.log(`[AUTH] Checking authentication for request to ${req.path}`);
+    console.log(`[AUTH] Session data:`, req.session ? { userId: req.session.userId } : 'No session');
+    
     // Check for real authenticated session with a user
     if (req.session.userId) {
       try {
         const user = await storage.getUser(req.session.userId);
         
         if (user) {
-          console.log(`[AUTH] Authenticated user: ${user.email}`);
+          console.log(`[AUTH] Authenticated user: ${user.email}, has tokens: ${!!user.accessToken && !!user.refreshToken}`);
+          
+          // Validate if we have tokens
+          if (!user.accessToken || !user.refreshToken) {
+            console.log(`[AUTH] User ${user.email} is missing required tokens`);
+            return res.status(401).json({
+              message: "Missing Gmail authorization tokens. Please sign in again.",
+              error: "token_missing"
+            });
+          }
+          
           req.user = user;
           return next();
+        } else {
+          console.log(`[AUTH] User not found for ID: ${req.session.userId}`);
         }
       } catch (error) {
-        console.error("Auth middleware error:", error);
+        console.error("[AUTH] Error retrieving user:", error);
       }
+    } else {
+      console.log('[AUTH] No userId in session');
     }
     
     // Regular session-based authentication
     if (!req.session.userId) {
       return res.status(401).json({
-        message: "Unauthorized",
+        message: "Unauthorized - No session",
       });
     }
 
@@ -118,8 +135,11 @@ export function setupGmail(app: Express, storage: IStorage) {
   const getGmailClient = async (user: any) => {
     try {
       if (!user.accessToken || !user.refreshToken) {
+        console.error(`[Gmail] Missing tokens for user ${user.email || user.id}`);
         throw new Error("Auth token error: Missing access or refresh token");
       }
+      
+      console.log(`[Gmail] Creating client for user ${user.email}, token expiry: ${user.expiryDate || 'unknown'}`);
       
       const oauth2Client = createOAuth2Client();
       
@@ -133,10 +153,19 @@ export function setupGmail(app: Express, storage: IStorage) {
       // Create Gmail client
       const gmail = google.gmail({ version: "v1", auth: oauth2Client });
       
+      // Test connection with a simple call to verify tokens work
+      try {
+        await gmail.users.getProfile({ userId: 'me' });
+        console.log(`[Gmail] Successfully verified Gmail access for user ${user.email}`);
+      } catch (error) {
+        console.error(`[Gmail] Failed initial token validation for user ${user.email}:`, error);
+        // We'll let the token refresh handler try to handle this
+      }
+      
       // Set up a token refresh handler
       oauth2Client.on('tokens', async (tokens) => {
         try {
-          console.log('Token refresh occurred, updating stored tokens');
+          console.log('[Gmail] Token refresh occurred, updating stored tokens');
           // Only update if we have an access token
           if (tokens.access_token) {
             // Use the globally stored storage reference
@@ -148,17 +177,17 @@ export function setupGmail(app: Express, storage: IStorage) {
                 tokens.refresh_token || user.refreshToken, // Keep existing refresh token if not provided
                 tokens.expiry_date ? new Date(tokens.expiry_date) : undefined
               );
-              console.log(`Updated tokens for user ${user.id} after refresh`);
+              console.log(`[Gmail] Updated tokens for user ${user.id} after refresh`);
             }
           }
         } catch (refreshError) {
-          console.error('Error saving refreshed tokens:', refreshError);
+          console.error('[Gmail] Error saving refreshed tokens:', refreshError);
         }
       });
       
       return gmail;
     } catch (error: any) {
-      console.error("Error creating Gmail client:", error);
+      console.error("[Gmail] Error creating Gmail client:", error);
       
       // Check for specific token errors
       if (error.message && (
@@ -179,25 +208,17 @@ export function setupGmail(app: Express, storage: IStorage) {
     try {
       const gmail = await getGmailClient(user);
       
-      // Calculate date for "last day" filter (24 hours ago)
-      const oneDayAgo = new Date();
-      oneDayAgo.setDate(oneDayAgo.getDate() - 1);
-      
-      // Format date for Gmail query: YYYY/MM/DD
-      const formattedDate = `${oneDayAgo.getFullYear()}/${oneDayAgo.getMonth() + 1}/${oneDayAgo.getDate()}`;
-      
-      // Get emails using after: query parameter for last day
-      // OR limit to maxResults: 100 total emails
-      const query = `after:${formattedDate}`;
+      console.log(`Fetching emails for user ${user.email}, page ${page}`);
       
       const response = await gmail.users.messages.list({
         userId: 'me',
-        maxResults: 10, // Max emails to return (reduced from 100 to 10)
-        q: query,
+        maxResults: 50, // Increased from 10 to 50
         pageToken: page > 1 ? `page${page - 1}` : undefined
       });
       
-      // Return limited emails list
+      console.log(`Found ${response.data.messages?.length || 0} messages`);
+      
+      // Return messages list
       return {
         messages: response.data.messages || [],
         nextPageToken: response.data.nextPageToken,
@@ -215,11 +236,24 @@ export function setupGmail(app: Express, storage: IStorage) {
       const page = parseInt(req.query.page as string) || 1;
       const pageSize = 50;
       
-      console.log(`Fetching page ${page} of emails from Gmail API (limited to 10 or last day)`);
+      console.log(`[Gmail] Fetching page ${page} of emails for user ${req.user?.email}`);
       
       try {
-        // Use our function to fetch limited emails from Gmail API
+        // Use our function to fetch emails from Gmail API
         const gmailData = await fetchLimitedEmails(req.user, page, pageSize);
+        
+        if (!gmailData.messages || gmailData.messages.length === 0) {
+          console.log('[Gmail] No messages found in response');
+          return res.status(200).json({
+            messages: [],
+            nextPageToken: null,
+            totalCount: 0,
+            maxReached: false,
+            page: page
+          });
+        }
+        
+        console.log(`[Gmail] Found ${gmailData.messages.length} messages, fetching details...`);
         
         // Fetch details for each message to get real email content
         const formattedMessages = await Promise.all(
@@ -261,7 +295,7 @@ export function setupGmail(app: Express, storage: IStorage) {
                 isStarred: isStarred
               };
             } catch (error) {
-              console.error(`Error fetching details for message ${msg.id}:`, error);
+              console.error(`[Gmail] Error fetching details for message ${msg.id}:`, error);
               // Return a fallback if we can't get details
               return {
                 id: msg.id,
@@ -276,6 +310,8 @@ export function setupGmail(app: Express, storage: IStorage) {
             }
           })
         );
+        
+        console.log(`[Gmail] Successfully formatted ${formattedMessages.length} messages`);
         
         return res.status(200).json({
           messages: formattedMessages,
@@ -292,12 +328,12 @@ export function setupGmail(app: Express, storage: IStorage) {
           tokenError.message.includes('token expired') ||
           tokenError.message.includes('Auth token error')
         )) {
-          console.error("Gmail token error - user needs to re-authenticate:", tokenError.message);
+          console.error("[Gmail] Token error - user needs to re-authenticate:", tokenError.message);
           
           // Clear user session to force re-authentication
           if (req.session) {
             req.session.destroy((err) => {
-              if (err) console.error("Error destroying session:", err);
+              if (err) console.error("[Gmail] Error destroying session:", err);
             });
           }
           
@@ -308,11 +344,10 @@ export function setupGmail(app: Express, storage: IStorage) {
           });
         }
         
-        // Re-throw other errors to be caught by the outer catch
         throw tokenError;
       }
     } catch (error: any) {
-      console.error("Gmail messages error:", error);
+      console.error("[Gmail] Error fetching messages:", error);
       res.status(500).json({
         message: "Failed to fetch messages",
         error: error.message || String(error)
