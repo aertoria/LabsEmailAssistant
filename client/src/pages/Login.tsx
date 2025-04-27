@@ -12,12 +12,12 @@ export default function Login() {
   const buttonRef = useRef<HTMLButtonElement>(null);
   const googleButtonRef = useRef<HTMLDivElement>(null);
 
-  // Redirect if already authenticated
+  // Redirect if already authenticated - using direct navigation to avoid React state issues
   useEffect(() => {
     if (isAuthenticated) {
-      setLocation("/dashboard");
+      window.location.href = "/dashboard";
     }
-  }, [isAuthenticated, setLocation]);
+  }, [isAuthenticated]);
 
   // Create a simple Google Sign-In function
   const onGoogleSignInClick = async () => {
@@ -105,8 +105,8 @@ export default function Login() {
                       // Store in localStorage for persistence
                       localStorage.setItem('gmail_app_user', JSON.stringify(demoUser));
                       
-                      // Redirect to dashboard
-                      setLocation("/dashboard");
+                      // Redirect to dashboard using direct navigation
+                      window.location.href = "/dashboard";
                     } catch (error) {
                       console.error("Error setting up demo user:", error);
                       toast({

@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState } from "react";
 import { useLocation } from "wouter";
 import { Header } from "@/components/Header";
 import { Sidebar } from "@/components/Sidebar";
@@ -25,24 +25,39 @@ const { useAuth } = AuthModule;
 export default function Dashboard() {
   const { isAuthenticated: authProviderAuthenticated, user: authUser, signOut } = useAuth();
   const [_, setLocation] = useLocation();
+  const [initialized, setInitialized] = useState(false);
   const [localUser, setLocalUser] = useState<any>(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   
-  // Check for local storage user on mount
+  // On first render only, check auth status
   useEffect(() => {
+    if (initialized) return;
+    
+    // Check for authenticated user in local storage first
     const storedUser = localStorage.getItem('gmail_app_user');
+    let hasLocalUser = false;
+    
     if (storedUser) {
       try {
         const parsedUser = JSON.parse(storedUser);
         setLocalUser(parsedUser);
         setIsAuthenticated(true);
+        hasLocalUser = true;
       } catch (e) {
         console.error("Failed to parse stored user:", e);
       }
     }
-  }, []);
+    
+    // If no local user and not authenticated via provider, redirect once
+    if (!hasLocalUser && !authProviderAuthenticated) {
+      window.location.href = '/'; // Hard navigation to avoid React state issues
+      return;
+    }
+    
+    setInitialized(true);
+  }, [authProviderAuthenticated, initialized]);
   
-  // Also check auth provider
+  // Update from auth provider when it changes
   useEffect(() => {
     if (authProviderAuthenticated && authUser) {
       setIsAuthenticated(true);
@@ -50,15 +65,13 @@ export default function Dashboard() {
     }
   }, [authProviderAuthenticated, authUser]);
   
-  // Composite user from either source
+  // Use whichever user we have
   const user = authUser || localUser;
   
-  // Custom sign out that clears localStorage
+  // Handle sign out
   const handleSignOut = async () => {
     // Clear local storage
     localStorage.removeItem('gmail_app_user');
-    setLocalUser(null);
-    setIsAuthenticated(false);
     
     // Try auth provider sign out if available
     try {
@@ -67,8 +80,8 @@ export default function Dashboard() {
       console.log("Auth provider signout failed, already handled locally");
     }
     
-    // Redirect to login
-    setLocation("/");
+    // Use hard navigation to avoid state issues
+    window.location.href = '/';
   };
 
   // Fetch sync status
@@ -110,19 +123,13 @@ export default function Dashboard() {
     }
   });
 
-  // Redirect if not authenticated - using a ref to prevent infinite redirects
-  const redirectAttemptedRef = useRef(false);
-  
-  useEffect(() => {
-    // Only attempt to redirect once to prevent infinite loops
-    if (!isAuthenticated && !localUser && !redirectAttemptedRef.current) {
-      redirectAttemptedRef.current = true;
-      setLocation("/");
-    }
-  }, [isAuthenticated, localUser, setLocation]);
-
-  if (!isAuthenticated || !user) {
-    return null; // Redirecting or not yet loaded
+  // Show loading state until we've determined authentication
+  if (!initialized || !user) {
+    return (
+      <div className="h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
+      </div>
+    );
   }
 
   return (
