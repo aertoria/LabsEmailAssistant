@@ -304,11 +304,15 @@ export function setupGmail(app: Express, storage: IStorage) {
   app.get("/api/gmail/sync/status", authMiddleware, async (req: Request, res: Response) => {
     try {
       // In a real app, this would track actual sync progress
+      // Limiting to 100 emails as requested by the user
+      const total = 100;
+      const processed = Math.floor(total * 0.65); // 65% complete
+      
       const syncStatus = {
         isActive: Math.random() > 0.7, // Randomly active for demo purposes
         progress: 65,
-        total: 1245,
-        processed: 812,
+        total: total,
+        processed: processed,
       };
 
       res.status(200).json(syncStatus);

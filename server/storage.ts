@@ -73,8 +73,8 @@ export class MemStorage implements IStorage {
   
   // Implementation of mock emails
   async getMockEmails(page: number = 1, pageSize: number = 50): Promise<{messages: any[], totalCount: number}> {
-    // Generate exactly 200 mock emails
-    const totalEmails = 200;
+    // Generate exactly 100 mock emails (limiting to 100 as requested)
+    const totalEmails = 100;
     const start = (page - 1) * pageSize;
     const end = Math.min(start + pageSize, totalEmails);
     
