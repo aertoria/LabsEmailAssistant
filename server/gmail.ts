@@ -28,44 +28,21 @@ const createOAuth2Client = () => {
 
 // Setup Gmail API routes
 export function setupGmail(app: Express, storage: IStorage) {
-  // Authentication middleware - supports both session and demo mode
+  // Authentication middleware - requires real session authentication
   const authMiddleware = async (req: Request, res: Response, next: Function) => {
-    // First check if this is a real authenticated session with a user
+    // Check for real authenticated session with a user
     if (req.session.userId) {
       try {
         const user = await storage.getUser(req.session.userId);
         
         if (user) {
-          console.log(`[AUTH] Using real user authentication for ${user.email}`);
+          console.log(`[AUTH] Authenticated user: ${user.email}`);
           req.user = user;
           return next();
         }
       } catch (error) {
         console.error("Auth middleware error:", error);
       }
-    }
-    
-    // Check for demo mode header or query parameter as fallback
-    const isDemoMode = 
-      req.headers['x-demo-mode'] === 'true' || 
-      req.query.demo === 'true';
-    
-    if (isDemoMode) {
-      console.log("[AUTH] Using demo mode authentication");
-      // Create a demo user for the request
-      req.user = {
-        id: 999,
-        username: "demo.user",
-        email: "demo.user@example.com",
-        name: "Demo User",
-        accessToken: "demo-token",
-        refreshToken: "demo-refresh-token",
-        tokenExpiry: null,
-        password: "",
-        googleId: null,
-        historyId: null
-      };
-      return next();
     }
     
     // Regular session-based authentication
@@ -142,145 +119,97 @@ export function setupGmail(app: Express, storage: IStorage) {
     }
   };
 
-  // List messages - limited to 100 emails or last day
+  // List messages - limited to 10 emails or from the last day
   app.get("/api/gmail/messages", authMiddleware, async (req: Request, res: Response) => {
     try {
       const page = parseInt(req.query.page as string) || 1;
       const pageSize = 50;
       
-      // Check if we're in demo mode
-      const isDemoMode = 
-        req.headers['x-demo-mode'] === 'true' || 
-        req.query.demo === 'true';
+      console.log(`Fetching page ${page} of emails from Gmail API (limited to 10 or last day)`);
       
-      if (isDemoMode) {
-        console.log(`Fetching page ${page} of emails from mock service`);
-        
-        // Use our storage method to get consistent mock emails (limited to 100)
-        const { messages, totalCount } = await storage.getMockEmails(page, pageSize);
-        
-        // Calculate pagination info
-        const totalPages = Math.ceil(totalCount / pageSize);
-        const hasNextPage = page < totalPages;
-        
-        return res.status(200).json({
-          messages,
-          nextPageToken: hasNextPage ? `page${page + 1}` : null,
-          totalCount,
-          maxReached: page >= 4,
-          page: page,
-          maxPages: totalPages
-        });
-      } else {
-        // Non-demo mode: Use real Gmail API with limits
-        // For real Gmail API, we'll limit to 100 emails or last day
-        console.log(`Fetching page ${page} of emails from Gmail API (limited to 100 or last day)`);
-        
-        try {
-          // Use our function to fetch limited emails from Gmail API
-          const gmailData = await fetchLimitedEmails(req.user, page, pageSize);
-          
-          // Fetch details for each message to get real email content
-          const formattedMessages = await Promise.all(
-            gmailData.messages.map(async (msg: any) => {
-              try {
-                // Import the Google API library
-                const { google } = require('googleapis');
-                
-                // Create a new OAuth2 client
-                const oauth2Client = new google.auth.OAuth2();
-                
-                // Set the credentials
-                oauth2Client.setCredentials({
-                  access_token: req.user?.accessToken
-                });
-                
-                // Create Gmail API client
-                const gmail = google.gmail({ version: 'v1', auth: oauth2Client });
-                
-                // Fetch the full message details for each message ID
-                const messageDetail = await gmail.users.messages.get({
-                  userId: 'me',
-                  id: msg.id,
-                  format: 'full' // Get full message details
-                });
-                
-                const data = messageDetail.data;
-                const headers = data.payload?.headers || [];
-                
-                // Define header type
-                interface MessageHeader {
-                  name: string;
-                  value: string;
-                }
-                
-                // Extract email metadata from headers
-                const subject = headers.find((h: MessageHeader) => h.name === 'Subject')?.value || 'No Subject';
-                const from = headers.find((h: MessageHeader) => h.name === 'From')?.value || 'Unknown Sender';
-                const date = headers.find((h: MessageHeader) => h.name === 'Date')?.value;
-                
-                // Check if the message has been read
-                const isUnread = data.labelIds?.includes('UNREAD') || false;
-                const isStarred = data.labelIds?.includes('STARRED') || false;
-                
-                // Format the date
-                const receivedDate = date ? new Date(date).toISOString() : new Date().toISOString();
-                
-                return {
-                  id: msg.id,
-                  threadId: msg.threadId,
-                  from: from,
-                  subject: subject,
-                  snippet: data.snippet || 'No preview available',
-                  receivedAt: receivedDate,
-                  isRead: !isUnread,
-                  isStarred: isStarred
-                };
-              } catch (error) {
-                console.error(`Error fetching details for message ${msg.id}:`, error);
-                // Return a fallback if we can't get details
-                return {
-                  id: msg.id,
-                  threadId: msg.threadId,
-                  from: "Gmail Message",
-                  subject: "Could not retrieve details",
-                  snippet: "Error loading email content...",
-                  receivedAt: new Date().toISOString(),
-                  isRead: true,
-                  isStarred: false
-                };
-              }
-            })
-          );
-          
-          return res.status(200).json({
-            messages: formattedMessages,
-            nextPageToken: gmailData.nextPageToken || null,
-            totalCount: gmailData.resultSizeEstimate || formattedMessages.length,
-            maxReached: false,
-            page: page
-          });
-        } catch (apiError) {
-          console.error("Gmail API error:", apiError);
-          
-          // Fallback to mock data if API fails
-          console.log("Falling back to mock data due to API error");
-          const { messages, totalCount } = await storage.getMockEmails(page, pageSize);
-          
-          const totalPages = Math.ceil(totalCount / pageSize);
-          const hasNextPage = page < totalPages;
-          
-          return res.status(200).json({
-            messages,
-            nextPageToken: hasNextPage ? `page${page + 1}` : null,
-            totalCount,
-            maxReached: page >= 4,
-            page: page,
-            maxPages: totalPages,
-            apiError: "Gmail API request failed, showing mock data"
-          });
-        }
-      }
+      // Use our function to fetch limited emails from Gmail API
+      const gmailData = await fetchLimitedEmails(req.user, page, pageSize);
+      
+      // Fetch details for each message to get real email content
+      const formattedMessages = await Promise.all(
+        gmailData.messages.map(async (msg: any) => {
+          try {
+            // Import the Google API library
+            const { google } = require('googleapis');
+            
+            // Create a new OAuth2 client
+            const oauth2Client = new google.auth.OAuth2();
+            
+            // Set the credentials
+            oauth2Client.setCredentials({
+              access_token: req.user?.accessToken
+            });
+            
+            // Create Gmail API client
+            const gmail = google.gmail({ version: 'v1', auth: oauth2Client });
+            
+            // Fetch the full message details for each message ID
+            const messageDetail = await gmail.users.messages.get({
+              userId: 'me',
+              id: msg.id,
+              format: 'full' // Get full message details
+            });
+            
+            const data = messageDetail.data;
+            const headers = data.payload?.headers || [];
+            
+            // Define header type
+            interface MessageHeader {
+              name: string;
+              value: string;
+            }
+            
+            // Extract email metadata from headers
+            const subject = headers.find((h: MessageHeader) => h.name === 'Subject')?.value || 'No Subject';
+            const from = headers.find((h: MessageHeader) => h.name === 'From')?.value || 'Unknown Sender';
+            const date = headers.find((h: MessageHeader) => h.name === 'Date')?.value;
+            
+            // Check if the message has been read
+            const isUnread = data.labelIds?.includes('UNREAD') || false;
+            const isStarred = data.labelIds?.includes('STARRED') || false;
+            
+            // Format the date
+            const receivedDate = date ? new Date(date).toISOString() : new Date().toISOString();
+            
+            return {
+              id: msg.id,
+              threadId: msg.threadId,
+              from: from,
+              subject: subject,
+              snippet: data.snippet || 'No preview available',
+              receivedAt: receivedDate,
+              isRead: !isUnread,
+              isStarred: isStarred
+            };
+          } catch (error) {
+            console.error(`Error fetching details for message ${msg.id}:`, error);
+            // Return a fallback if we can't get details
+            return {
+              id: msg.id,
+              threadId: msg.threadId,
+              from: "Gmail Message",
+              subject: "Could not retrieve details",
+              snippet: "Error loading email content...",
+              receivedAt: new Date().toISOString(),
+              isRead: true,
+              isStarred: false
+            };
+          }
+        })
+      );
+      
+      return res.status(200).json({
+        messages: formattedMessages,
+        nextPageToken: gmailData.nextPageToken || null,
+        totalCount: gmailData.resultSizeEstimate || formattedMessages.length,
+        maxReached: false,
+        page: page
+      });
     } catch (error) {
       console.error("Gmail messages error:", error);
       res.status(500).json({
@@ -289,92 +218,81 @@ export function setupGmail(app: Express, storage: IStorage) {
     }
   });
 
-  // Get message - provide sample data
+  // Get message details from Gmail API
   app.get("/api/gmail/messages/:id", authMiddleware, async (req: Request, res: Response) => {
     try {
       const { id } = req.params;
       
-      console.log(`Providing sample data for message ID: ${id}`);
+      console.log(`Fetching real message from Gmail API for ID: ${id}`);
       
-      // Generate a deterministic sample message based on the ID
-      const messageIdNum = parseInt(id.replace('msg-', '')) || 1;
+      // Get Gmail client
+      const gmail = await getGmailClient(req.user);
       
-      // Generate consistent sender based on ID
-      const senderOptions = [
-        'John Smith <john.smith@gmail.com>',
-        'Jane Doe <jane.doe@yahoo.com>',
-        'Support Team <support@example.org>',
-        'Notifications <notifications@company.com>',
-        'Marketing <marketing@example.com>',
-        'Your Bank <alerts@bank.com>',
-        'Calendar <calendar@notifications.com>'
-      ];
+      // Fetch full message details including body
+      const messageDetail = await gmail.users.messages.get({
+        userId: 'me',
+        id: id,
+        format: 'full'
+      });
       
-      const sender = senderOptions[messageIdNum % senderOptions.length];
+      const data = messageDetail.data;
+      const headers = data.payload?.headers || [];
       
-      // Sample recipients
-      const recipients = [
-        'you@gmail.com', 
-        'team@yourcompany.com',
-        'family@groups.com'
-      ];
+      // Define header type
+      interface MessageHeader {
+        name: string;
+        value: string;
+      }
       
-      // Generate consistent subject based on ID
-      const subjectOptions = [
-        'Important: Project Update',
-        'Your monthly statement is ready',
-        'Meeting invitation for next week',
-        'Follow-up on our conversation',
-        'Action required: Verify your account',
-        'Your order has shipped',
-        'Weekend promotion: Special offers'
-      ];
-      const subject = subjectOptions[messageIdNum % subjectOptions.length];
+      // Extract email metadata from headers
+      const subject = headers.find((h: MessageHeader) => h.name === 'Subject')?.value || 'No Subject';
+      const from = headers.find((h: MessageHeader) => h.name === 'From')?.value || 'Unknown Sender';
+      const to = headers.find((h: MessageHeader) => h.name === 'To')?.value || '';
+      const date = headers.find((h: MessageHeader) => h.name === 'Date')?.value;
       
-      // Sample HTML body with inline styles for better email appearance
-      const htmlBody = `
-      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-        <div style="background-color: #f8f9fa; padding: 20px; border-bottom: 3px solid #4285f4;">
-          <h2 style="color: #202124; margin: 0;">${subject}</h2>
-        </div>
-        <div style="padding: 20px; color: #202124;">
-          <p>Hello,</p>
-          <p>This is a sample email message generated for the Gmail clone application. This demonstrates how emails would look in a real application.</p>
-          <p>The ID of this message is <strong>${id}</strong>, and it would normally contain personalized content based on the actual email.</p>
-          <p>In a real application, this would be fetched from the Gmail API, but for demonstration purposes, we're generating sample content.</p>
-          <p>Thanks for trying out our application!</p>
-          <p style="margin-top: 30px;">Regards,<br>${sender.split('<')[0].trim()}</p>
-        </div>
-        <div style="background-color: #f8f9fa; padding: 15px; font-size: 12px; color: #5f6368; border-top: 1px solid #dadce0;">
-          <p style="margin: 0;">This is an automatically generated email for demonstration purposes only.</p>
-        </div>
-      </div>
-      `;
+      // Check if the message has been read
+      const isUnread = data.labelIds?.includes('UNREAD') || false;
+      const isStarred = data.labelIds?.includes('STARRED') || false;
       
-      // Generate a date within the last month
-      const date = new Date();
-      date.setDate(date.getDate() - (messageIdNum % 30));
+      // Extract body content (HTML if available, otherwise plain text)
+      let bodyContent = '';
       
-      // Determine if read/starred based on ID
-      const isUnread = messageIdNum % 3 === 0;
-      const isStarred = messageIdNum % 5 === 0;
+      // Function to extract body parts
+      function extractBody(part: any): string {
+        if (part.mimeType === 'text/html' && part.body?.data) {
+          return Buffer.from(part.body.data, 'base64').toString('utf-8');
+        } else if (part.mimeType === 'text/plain' && part.body?.data) {
+          const plainText = Buffer.from(part.body.data, 'base64').toString('utf-8');
+          return `<div style="white-space: pre-wrap;">${plainText}</div>`;
+        } else if (part.parts) {
+          // Recursively search for HTML or plain text parts
+          for (const subPart of part.parts) {
+            const content = extractBody(subPart);
+            if (content) return content;
+          }
+        }
+        return '';
+      }
       
+      // Extract body from message payload
+      if (data.payload) {
+        bodyContent = extractBody(data.payload) || 'No message content available';
+      }
+      
+      // Format the date
+      const receivedDate = date ? new Date(date).toISOString() : new Date().toISOString();
+      
+      // Build complete message object
       const formattedMessage = {
         id: id,
-        threadId: `thread-${Math.ceil(messageIdNum / 3)}`,
-        from: sender,
-        to: recipients[messageIdNum % recipients.length],
+        threadId: data.threadId,
+        from: from,
+        to: to,
         subject: subject,
-        date: date.toISOString(),
-        body: htmlBody,
-        snippet: `This is a sample email message generated for the Gmail clone application. This demonstrates how emails would look in a real application...`,
-        labelIds: [
-          isUnread ? 'UNREAD' : 'INBOX',
-          isStarred ? 'STARRED' : '',
-          messageIdNum % 7 === 0 ? 'IMPORTANT' : '',
-          messageIdNum % 11 === 0 ? 'CATEGORY_PERSONAL' : '',
-          messageIdNum % 13 === 0 ? 'CATEGORY_SOCIAL' : ''
-        ].filter(Boolean),
+        date: receivedDate,
+        body: bodyContent,
+        snippet: data.snippet || '',
+        labelIds: data.labelIds || [],
         isUnread: isUnread,
         isStarred: isStarred,
       };
@@ -383,12 +301,13 @@ export function setupGmail(app: Express, storage: IStorage) {
     } catch (error) {
       console.error("Gmail message error:", error);
       res.status(500).json({
-        message: "Failed to fetch message",
+        message: "Failed to fetch message from Gmail API",
+        error: error.message
       });
     }
   });
 
-  // Star/unstar message - handle with local logic only
+  // Star/unstar message - use Gmail API
   app.post("/api/gmail/messages/:id/star", authMiddleware, async (req: Request, res: Response) => {
     try {
       const { id } = req.params;
@@ -400,68 +319,91 @@ export function setupGmail(app: Express, storage: IStorage) {
         });
       }
       
-      console.log(`Setting starred status for message ${id} to ${star}`);
+      console.log(`Setting starred status for message ${id} to ${star} using Gmail API`);
       
-      // In a real app, this would update the message in the Gmail API
-      // For demo purposes, we simply return success without actually changing anything
+      // Get Gmail client
+      const gmail = await getGmailClient(req.user);
+      
+      // Get message details to check the current labels
+      const message = await gmail.users.messages.get({
+        userId: 'me',
+        id: id
+      });
+      
+      const currentLabels = message.data.labelIds || [];
+      
+      // Prepare the label modification request
+      if (star) {
+        // Add STARRED label if not already present
+        if (!currentLabels.includes('STARRED')) {
+          await gmail.users.messages.modify({
+            userId: 'me',
+            id: id,
+            requestBody: {
+              addLabelIds: ['STARRED']
+            }
+          });
+        }
+      } else {
+        // Remove STARRED label if present
+        if (currentLabels.includes('STARRED')) {
+          await gmail.users.messages.modify({
+            userId: 'me',
+            id: id,
+            requestBody: {
+              removeLabelIds: ['STARRED']
+            }
+          });
+        }
+      }
       
       res.status(200).json({
-        message: `Message ${star ? "starred" : "unstarred"} successfully`,
+        message: `Message ${star ? "starred" : "unstarred"} successfully with Gmail API`,
         id: id,
         isStarred: star
       });
     } catch (error) {
       console.error("Star message error:", error);
       res.status(500).json({
-        message: "Failed to update star status",
+        message: "Failed to update star status in Gmail API",
+        error: error.message
       });
     }
   });
 
-  // Get labels - provide sample data
+  // Get real Gmail labels
   app.get("/api/gmail/labels", authMiddleware, async (req: Request, res: Response) => {
     try {
-      console.log("Providing sample labels data");
+      console.log("Fetching real labels from Gmail API");
       
-      // Sample labels with different colors
-      const labels = [
-        {
-          id: 'Label_1',
-          name: 'Work',
-          color: '#D50000' // Red
-        },
-        {
-          id: 'Label_2',
-          name: 'Personal',
-          color: '#3B82F6' // Blue
-        },
-        {
-          id: 'Label_3',
-          name: 'Family',
-          color: '#33B679' // Green
-        },
-        {
-          id: 'Label_4',
-          name: 'Projects',
-          color: '#FF6D00' // Orange
-        },
-        {
-          id: 'Label_5',
-          name: 'Finance',
-          color: '#8E24AA' // Purple
-        },
-        {
-          id: 'Label_6',
-          name: 'Travel',
-          color: '#0B8043' // Dark Green
-        }
-      ];
+      // Get Gmail client
+      const gmail = await getGmailClient(req.user);
+      
+      // Fetch the user's labels from Gmail API
+      const response = await gmail.users.labels.list({
+        userId: 'me'
+      });
+      
+      // Format and map the labels
+      const labels = response.data.labels?.map(label => {
+        // Set default color for labels without color
+        const defaultColor = '#4285F4'; // Google blue
+        
+        return {
+          id: label.id,
+          name: label.name,
+          color: label.color?.backgroundColor || defaultColor,
+          textColor: label.color?.textColor || '#FFFFFF',
+          type: label.type || 'user'
+        };
+      }) || [];
       
       res.status(200).json(labels);
     } catch (error) {
       console.error("Gmail labels error:", error);
       res.status(500).json({
-        message: "Failed to fetch labels",
+        message: "Failed to fetch labels from Gmail API",
+        error: error.message
       });
     }
   });

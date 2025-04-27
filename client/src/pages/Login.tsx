@@ -86,55 +86,7 @@ export default function Login() {
                 {/* This div will be used for the manual Google Sign-In button if One Tap fails */}
                 <div id="google-signin-button-container" className="mt-4"></div>
                 
-                {/* Divider */}
-                <div className="relative my-4 w-full">
-                  <div className="absolute inset-0 flex items-center">
-                    <span className="w-full border-t border-gray-300"></span>
-                  </div>
-                  <div className="relative flex justify-center">
-                    <span className="bg-white px-3 text-sm text-gray-500">OR</span>
-                  </div>
-                </div>
-                
-                {/* Demo login option */}
-                <button 
-                  onClick={() => {
-                    try {
-                      // Create a simulated user for demo purposes
-                      // Note: No googleId = demo user
-                      const demoUser = {
-                        id: 1,
-                        email: "demo.user@example.com",
-                        name: "Demo User",
-                        isDemoUser: true // Explicitly mark as demo user
-                      };
-                      
-                      console.log("Setting up demo user...");
-                      
-                      // Store in localStorage for persistence
-                      localStorage.setItem('gmail_app_user', JSON.stringify(demoUser));
-                      
-                      // Show success toast
-                      toast({
-                        title: "Demo Login Successful",
-                        description: "Welcome to the Gmail app demo!"
-                      });
-                      
-                      // Redirect to dashboard using React Router
-                      setLocation("/dashboard");
-                    } catch (error) {
-                      console.error("Error setting up demo user:", error);
-                      toast({
-                        variant: "destructive",
-                        title: "Demo Login Failed",
-                        description: "There was an error logging in with the demo account. Please try again."
-                      });
-                    }
-                  }}
-                  className="w-full flex items-center justify-center bg-blue-500 text-white rounded-md py-2 px-4 font-medium hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition"
-                >
-                  Continue with Demo Account
-                </button>
+                {/* No demo login option - Google auth only */}
               </div>
 
               {isLoading && (

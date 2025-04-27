@@ -21,36 +21,12 @@ export function EmailList() {
     // Silence 401 errors since we handle them at the app level
     queryFn: async ({ queryKey }) => {
       try {
-        // Check if we have a demo user in localStorage
-        const storedUser = localStorage.getItem('gmail_app_user');
-        
-        // Parse the stored user to see if it's a demo user or real Google user
-        let isDemoMode = false;
-        
-        if (storedUser) {
-          try {
-            const parsedUser = JSON.parse(storedUser);
-            // Check if this is a demo user (without Google authentication)
-            isDemoMode = !parsedUser.googleId;
-            
-            console.log("User authentication type:", 
-              isDemoMode ? "Demo user (no Google auth)" : "Real Google authenticated user");
-          } catch (e) {
-            console.error("Error parsing stored user:", e);
-            isDemoMode = true; // Fallback to demo mode if we can't parse
-          }
-        }
-        
-        // Add demo parameter to request if we're in demo mode
-        const url = isDemoMode 
-          ? `${queryKey[0]}?page=${page}&demo=true` 
-          : `${queryKey[0]}?page=${page}`;
-        
-        console.log("Fetching emails from:", url, isDemoMode ? "(DEMO MODE)" : "(REAL GMAIL DATA)");
+        // Only use real Gmail data - no demo mode
+        const url = `${queryKey[0]}?page=${page}`;
+        console.log("Fetching emails from:", url, "(REAL GMAIL DATA)");
         
         const response = await fetch(url, {
-          credentials: "include",
-          headers: isDemoMode ? { 'X-Demo-Mode': 'true' } : {}
+          credentials: "include"
         });
         
         if (response.status === 401) {
@@ -65,18 +41,13 @@ export function EmailList() {
         
         const result = await response.json();
         
-        // Log if we're using real data or mock data
-        if (result.apiError) {
-          console.warn("Using mock data due to API error:", result.apiError);
-        } else {
-          console.log("Successfully loaded", result.messages.length, "emails", 
-            isDemoMode ? "(demo mode)" : "(real Gmail data)");
-        }
+        // Log that we're using real data
+        console.log("Successfully loaded", result.messages.length, "emails (real Gmail data)");
         
         // Add data source indicator to the returned result
         return {
           ...result,
-          dataSource: isDemoMode ? "demo" : "gmail"
+          dataSource: "gmail"
         };
       } catch (err) {
         console.error("Error fetching emails:", err);
@@ -138,14 +109,12 @@ export function EmailList() {
             <button className="p-2 rounded-full hover:bg-gray-100" title="More actions">
               <MoreVertical size={18} />
             </button>
-            {/* Data Source Indicator */}
+            {/* Gmail Data Indicator */}
             <span 
               id="data-source-indicator" 
-              className={emailsData?.dataSource === 'gmail' 
-                ? "ml-3 text-xs font-medium p-1 bg-green-100 text-green-800 rounded" 
-                : "ml-3 text-xs font-medium p-1 bg-yellow-100 text-yellow-800 rounded"}
+              className="ml-3 text-xs font-medium p-1 bg-green-100 text-green-800 rounded"
             >
-              {emailsData?.dataSource === 'gmail' ? 'Real Gmail Data' : 'DEMO MODE'}
+              Real Gmail Data
             </span>
           </div>
         </div>
