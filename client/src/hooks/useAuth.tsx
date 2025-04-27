@@ -98,10 +98,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     checkAuthStatus();
   }, []);
 
-  // Initialize Google Sign-In on mount
+  // Initialize Google Sign-In on mount - only once
   useEffect(() => {
+    let isMounted = true;
+    let checkGoogleApiInterval: ReturnType<typeof setInterval> | null = null;
+    
     const initializeGoogleSignIn = () => {
-      if (!window.google || !window.google.accounts) return;
+      if (!window.google || !window.google.accounts || !isMounted) return;
       
       try {
         const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
@@ -110,26 +113,43 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           return;
         }
         
-        window.google.accounts.id.initialize({
-          client_id: clientId,
-          callback: async ({ credential }: any) => {
-            try {
-              console.log('Google credential received, authenticating...');
-              const response = await apiRequest('POST', '/api/auth/google', { credential });
-              
-              if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(errorData.message || 'Backend authentication failed');
-              }
-              
-              const data = await response.json();
-              console.log('Authentication successful, user data:', data);
-              
+        // Create a stable callback that doesn't recreate on render
+        const handleCredential = async (response: any) => {
+          if (!isMounted) return;
+          
+          try {
+            const { credential } = response;
+            if (!credential) {
+              console.error('No credential received from Google');
+              return;
+            }
+            
+            console.log('Google credential received, authenticating...');
+            const apiResponse = await fetch('/api/auth/google', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({ credential }),
+              credentials: 'include'
+            });
+            
+            if (!apiResponse.ok) {
+              const errorData = await apiResponse.json();
+              throw new Error(errorData.message || 'Backend authentication failed');
+            }
+            
+            const data = await apiResponse.json();
+            console.log('Authentication successful, user data:', data);
+            
+            if (isMounted) {
               setIsAuthenticated(true);
               setUser(data.user);
               setLocation('/dashboard');
-            } catch (error) {
-              console.error('Authentication error:', error);
+            }
+          } catch (error) {
+            console.error('Authentication error:', error);
+            if (isMounted) {
               toast({
                 variant: "destructive",
                 title: "Authentication failed",
@@ -138,7 +158,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                   : "Could not sign in with Google. Make sure your Google Cloud Console project has the correct authorized domains.",
               });
             }
-          },
+          }
+        };
+        
+        window.google.accounts.id.initialize({
+          client_id: clientId,
+          callback: handleCredential,
           auto_select: false
         });
         
@@ -153,17 +178,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (window.google && window.google.accounts) {
       initializeGoogleSignIn();
     } else {
-      const checkGoogleApi = setInterval(() => {
+      checkGoogleApiInterval = setInterval(() => {
         if (window.google && window.google.accounts) {
-          clearInterval(checkGoogleApi);
+          if (checkGoogleApiInterval) clearInterval(checkGoogleApiInterval);
           initializeGoogleSignIn();
         }
-      }, 100);
-      
-      // Clean up interval
-      return () => clearInterval(checkGoogleApi);
+      }, 200); // Slightly longer interval to reduce CPU usage
     }
-  }, [setLocation, toast]);
+    
+    // Clean up function
+    return () => {
+      isMounted = false;
+      if (checkGoogleApiInterval) {
+        clearInterval(checkGoogleApiInterval);
+      }
+    };
+    // Removed the dependencies to ensure this only runs once on mount
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleGoogleSignIn = async () => {
     return new Promise<void>((resolve, reject) => {
