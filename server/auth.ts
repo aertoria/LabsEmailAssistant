@@ -198,6 +198,7 @@ export function setupAuth(app: Express, storage: IStorage) {
           id: user.id,
           email: user.email,
           name: user.name,
+          googleId: user.googleId, // Important: Include googleId so frontend can identify real Google users
         },
       });
     } catch (error) {

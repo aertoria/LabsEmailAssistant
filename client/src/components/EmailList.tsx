@@ -73,7 +73,11 @@ export function EmailList() {
             isDemoMode ? "(demo mode)" : "(real Gmail data)");
         }
         
-        return result;
+        // Add data source indicator to the returned result
+        return {
+          ...result,
+          dataSource: isDemoMode ? "demo" : "gmail"
+        };
       } catch (err) {
         console.error("Error fetching emails:", err);
         // Return empty data instead of throwing to avoid error UI
@@ -134,6 +138,15 @@ export function EmailList() {
             <button className="p-2 rounded-full hover:bg-gray-100" title="More actions">
               <MoreVertical size={18} />
             </button>
+            {/* Data Source Indicator */}
+            <span 
+              id="data-source-indicator" 
+              className={emailsData?.dataSource === 'gmail' 
+                ? "ml-3 text-xs font-medium p-1 bg-green-100 text-green-800 rounded" 
+                : "ml-3 text-xs font-medium p-1 bg-yellow-100 text-yellow-800 rounded"}
+            >
+              {emailsData?.dataSource === 'gmail' ? 'Real Gmail Data' : 'DEMO MODE'}
+            </span>
           </div>
         </div>
         

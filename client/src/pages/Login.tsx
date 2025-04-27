@@ -11,13 +11,17 @@ export default function Login() {
   const { toast } = useToast();
   const buttonRef = useRef<HTMLButtonElement>(null);
   const googleButtonRef = useRef<HTMLDivElement>(null);
+  const didRedirect = useRef(false);
 
   // Redirect if already authenticated using React Router
+  // Use ref to prevent multiple redirects
   useEffect(() => {
-    // Only redirect if we're authenticated
-    if (isAuthenticated) {
+    // Only redirect if we're authenticated and haven't redirected yet
+    if (isAuthenticated && !didRedirect.current) {
       console.log("User is authenticated, redirecting to dashboard");
-      // Use a direct location change to avoid potential infinite loops
+      // Mark that we've redirected to prevent infinite loops
+      didRedirect.current = true;
+      // Use a direct location change to avoid potential re-renders
       window.location.href = "/dashboard";
     }
   }, [isAuthenticated]);
@@ -97,10 +101,12 @@ export default function Login() {
                   onClick={() => {
                     try {
                       // Create a simulated user for demo purposes
+                      // Note: No googleId = demo user
                       const demoUser = {
                         id: 1,
                         email: "demo.user@example.com",
-                        name: "Demo User"
+                        name: "Demo User",
+                        isDemoUser: true // Explicitly mark as demo user
                       };
                       
                       console.log("Setting up demo user...");
