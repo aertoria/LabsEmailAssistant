@@ -90,39 +90,42 @@ export function setupAuth(app: Express, storage: IStorage) {
       req.session.userId = user.id;
 
       try {
-        // For development purposes, we'll simulate having tokens
-        const tokens = {
-          access_token: "simulated_access_token_for_" + user.email,
-          refresh_token: "simulated_refresh_token_for_" + user.email,
-          expiry_date: new Date(Date.now() + 3600 * 1000).toISOString() // 1 hour from now
-        };
-
-        console.log('Creating tokens for user:', user.id, tokens);
+        // Exchange the Google ID token for access and refresh tokens
+        const oauth2Client = createOAuth2Client();
         
-        // Store tokens in the user record
-        await storage.updateUserTokens(
-          user.id,
-          tokens.access_token,
-          tokens.refresh_token,
-          new Date(tokens.expiry_date)
-        );
+        // Get user info via the Google People API to request scopes needed for Gmail
+        // Note: We need to exchange the ID token for a proper OAuth token with scopes
+        const authUrl = oauth2Client.generateAuthUrl({
+          access_type: 'offline',
+          scope: [
+            'https://www.googleapis.com/auth/gmail.readonly',
+            'https://www.googleapis.com/auth/gmail.modify',
+            'https://www.googleapis.com/auth/userinfo.profile',
+            'https://www.googleapis.com/auth/userinfo.email'
+          ],
+          // Force approval prompt to get a refresh token every time
+          prompt: 'consent' 
+        });
         
-        console.log('User tokens updated successfully');
+        // Return the auth URL to the client for redirection
+        return res.status(200).json({
+          user: {
+            id: user.id,
+            email: user.email,
+            name: user.name,
+            googleId: user.googleId || payload.sub,
+            needsGmailAuth: true, // Flag to indicate the user needs to complete Gmail auth
+          },
+          authUrl: authUrl,
+          message: "User authenticated, but needs Gmail authorization"
+        });
+        
       } catch (tokenError) {
-        console.error('Error storing tokens:', tokenError);
-        // Continue anyway to not block the sign-in process
+        console.error('Error generating auth URL:', tokenError);
+        return res.status(500).json({
+          message: "Failed to generate Gmail authorization URL",
+        });
       }
-      
-      // Return the user data including googleId to identify real Google users
-      res.status(200).json({
-        user: {
-          id: user.id,
-          email: user.email,
-          name: user.name,
-          googleId: user.googleId || payload.sub, // Include the Google ID so the frontend knows this is a real Google user
-        },
-        message: "Successfully authenticated with Google",
-      });
     } catch (error) {
       console.error("Google auth error:", error);
       res.status(500).json({
@@ -162,10 +165,32 @@ export function setupAuth(app: Express, storage: IStorage) {
         });
       }
 
-      // Store tokens (in a real app, these would be encrypted)
-      // Update user with access and refresh tokens
-      // This would be handled by a proper updateUser method in a real app
+      console.log("Received tokens from Google OAuth:", { 
+        accessTokenExists: !!tokens.access_token,
+        refreshTokenExists: !!tokens.refresh_token,
+        expiryDate: tokens.expiry_date 
+      });
 
+      // Store tokens in the database
+      try {
+        // Update expiry date format
+        const expiryDate = tokens.expiry_date ? new Date(tokens.expiry_date) : undefined;
+        
+        // Update user with the real tokens
+        await storage.updateUserTokens(
+          user.id,
+          tokens.access_token || '',
+          tokens.refresh_token || '',
+          expiryDate
+        );
+        
+        console.log(`Successfully stored Google OAuth tokens for user ${user.id}`);
+      } catch (tokenError) {
+        console.error("Error storing OAuth tokens:", tokenError);
+        // Still redirect but log the error
+      }
+
+      // Redirect to dashboard
       res.redirect("/dashboard");
     } catch (error) {
       console.error("OAuth callback error:", error);
