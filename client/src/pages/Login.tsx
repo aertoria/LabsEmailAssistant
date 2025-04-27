@@ -26,14 +26,50 @@ export default function Login() {
     }
   }, [isAuthenticated]);
 
-  // Create a simple Google Sign-In function
+  // Create a more robust Google Sign-In function with retry
   const onGoogleSignInClick = async () => {
     try {
       setIsLoading(true);
       
       // First, check if Google is available
       if (!window.google || !window.google.accounts) {
-        throw new Error("Google authentication services not available. Please try again later.");
+        console.warn("Google auth not available yet, reloading script...");
+        
+        // Try to reload the Google auth script
+        const script = document.createElement('script');
+        script.src = 'https://accounts.google.com/gsi/client';
+        script.async = true;
+        script.defer = true;
+        script.id = 'google-auth-script-retry';
+        
+        // Create a promise that resolves when the script loads
+        const scriptLoadPromise = new Promise<void>((resolve, reject) => {
+          script.onload = () => {
+            console.log("Google Identity Services script reloaded successfully");
+            resolve();
+          };
+          script.onerror = () => {
+            reject(new Error("Failed to load Google Identity Services script"));
+          };
+        });
+        
+        // Add the script to the document
+        document.body.appendChild(script);
+        
+        // Wait for the script to load with a timeout
+        try {
+          await Promise.race([
+            scriptLoadPromise,
+            new Promise<void>((_, reject) => setTimeout(() => reject(new Error("Google auth script load timeout")), 5000))
+          ]);
+          
+          // Check again after script loaded
+          if (!window.google || !window.google.accounts) {
+            throw new Error("Google authentication services not available. Please enable cookies and try again in a different browser.");
+          }
+        } catch (scriptError) {
+          throw new Error("Google authentication services failed to load. Please try again later or use a different browser.");
+        }
       }
       
       console.log("Attempting Google sign-in...");

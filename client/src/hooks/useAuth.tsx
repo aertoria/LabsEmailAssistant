@@ -202,7 +202,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return new Promise<void>((resolve, reject) => {
       if (!window.google || !window.google.accounts) {
         console.error('Google authentication is not available');
-        reject(new Error('Google authentication services not available. Please make sure cookies and JavaScript are enabled in your browser.'));
+        reject(new Error('Auth not available'));
         return;
       }
 
@@ -224,7 +224,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           buttonContainer.innerHTML = '';
         }
         
-        // Initialize with new parameters
+        // Initialize with new parameters including required Gmail scopes
         window.google.accounts.id.initialize({
           client_id: googleClientId,
           callback: async (response: any) => {
@@ -257,6 +257,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               const data = await apiResponse.json();
               console.log('Authentication successful, user data:', data);
               
+              // Check if the user needs additional Gmail authorization
+              if (data.authUrl) {
+                console.log('User needs additional Gmail authorization, redirecting to:', data.authUrl);
+                
+                // Show a toast notification before redirecting
+                toast({
+                  title: "Gmail Authorization Required",
+                  description: "You'll be redirected to authorize Gmail access...",
+                });
+                
+                // Set a slight delay before redirecting to allow the toast to be seen
+                setTimeout(() => {
+                  window.location.href = data.authUrl;
+                }, 1500);
+                
+                // Don't resolve or reject yet - we're redirecting to complete auth flow
+                return;
+              }
+              
               // Update local state
               setIsAuthenticated(true);
               setUser(data.user);
@@ -272,7 +291,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               
               resolve();
               
-              // Navigate after authentication using React Router instead of page reload
+              // Navigate after authentication using location setter rather than window.location.href
               setLocation('/dashboard');
             } catch (error) {
               console.error('Authentication error with backend:', error);
