@@ -91,30 +91,122 @@ export function setupGmail(app: Express, storage: IStorage) {
 
     return google.gmail({ version: "v1", auth: oauth2Client });
   };
+  
+  // Fetch emails from Gmail API with limit of 100 emails or emails from the last day
+  const fetchLimitedEmails = async (user: any, page: number = 1, pageSize: number = 50) => {
+    try {
+      const gmail = await getGmailClient(user);
+      
+      // Calculate date for "last day" filter (24 hours ago)
+      const oneDayAgo = new Date();
+      oneDayAgo.setDate(oneDayAgo.getDate() - 1);
+      
+      // Format date for Gmail query: YYYY/MM/DD
+      const formattedDate = `${oneDayAgo.getFullYear()}/${oneDayAgo.getMonth() + 1}/${oneDayAgo.getDate()}`;
+      
+      // Get emails using after: query parameter for last day
+      // OR limit to maxResults: 100 total emails
+      const query = `after:${formattedDate}`;
+      
+      const response = await gmail.users.messages.list({
+        userId: 'me',
+        maxResults: 100, // Max emails to return
+        q: query,
+        pageToken: page > 1 ? `page${page - 1}` : undefined
+      });
+      
+      // Return limited emails list
+      return {
+        messages: response.data.messages || [],
+        nextPageToken: response.data.nextPageToken,
+        resultSizeEstimate: response.data.resultSizeEstimate || 0
+      };
+    } catch (error) {
+      console.error('Error fetching emails from Gmail API:', error);
+      throw error;
+    }
+  };
 
-  // List messages - limit to 200 emails
+  // List messages - limited to 100 emails or last day
   app.get("/api/gmail/messages", authMiddleware, async (req: Request, res: Response) => {
     try {
       const page = parseInt(req.query.page as string) || 1;
       const pageSize = 50;
       
-      console.log(`Fetching page ${page} of emails from mock service`);
+      // Check if we're in demo mode
+      const isDemoMode = 
+        req.headers['x-demo-mode'] === 'true' || 
+        req.query.demo === 'true';
       
-      // Use our new storage method to get consistent mock emails
-      const { messages, totalCount } = await storage.getMockEmails(page, pageSize);
-      
-      // Calculate pagination info
-      const totalPages = Math.ceil(totalCount / pageSize);
-      const hasNextPage = page < totalPages;
-      
-      res.status(200).json({
-        messages,
-        nextPageToken: hasNextPage ? `page${page + 1}` : null,
-        totalCount,
-        maxReached: page >= 4,
-        page: page,
-        maxPages: totalPages
-      });
+      if (isDemoMode) {
+        console.log(`Fetching page ${page} of emails from mock service`);
+        
+        // Use our storage method to get consistent mock emails (limited to 100)
+        const { messages, totalCount } = await storage.getMockEmails(page, pageSize);
+        
+        // Calculate pagination info
+        const totalPages = Math.ceil(totalCount / pageSize);
+        const hasNextPage = page < totalPages;
+        
+        return res.status(200).json({
+          messages,
+          nextPageToken: hasNextPage ? `page${page + 1}` : null,
+          totalCount,
+          maxReached: page >= 4,
+          page: page,
+          maxPages: totalPages
+        });
+      } else {
+        // Non-demo mode: Use real Gmail API with limits
+        // For real Gmail API, we'll limit to 100 emails or last day
+        console.log(`Fetching page ${page} of emails from Gmail API (limited to 100 or last day)`);
+        
+        try {
+          // Use our function to fetch limited emails from Gmail API
+          const gmailData = await fetchLimitedEmails(req.user, page, pageSize);
+          
+          // Transform messages to match our app's expected format
+          const formattedMessages = gmailData.messages.map((msg: any) => ({
+            id: msg.id,
+            threadId: msg.threadId,
+            // Other fields would be populated with detailed message data
+            // In a real implementation, we might need to fetch each message
+            from: "From Gmail API",
+            subject: "Gmail Message",
+            snippet: "Email content would be shown here...",
+            receivedAt: new Date().toISOString(),
+            isRead: true,
+            isStarred: false
+          }));
+          
+          return res.status(200).json({
+            messages: formattedMessages,
+            nextPageToken: gmailData.nextPageToken || null,
+            totalCount: gmailData.resultSizeEstimate || formattedMessages.length,
+            maxReached: false,
+            page: page
+          });
+        } catch (apiError) {
+          console.error("Gmail API error:", apiError);
+          
+          // Fallback to mock data if API fails
+          console.log("Falling back to mock data due to API error");
+          const { messages, totalCount } = await storage.getMockEmails(page, pageSize);
+          
+          const totalPages = Math.ceil(totalCount / pageSize);
+          const hasNextPage = page < totalPages;
+          
+          return res.status(200).json({
+            messages,
+            nextPageToken: hasNextPage ? `page${page + 1}` : null,
+            totalCount,
+            maxReached: page >= 4,
+            page: page,
+            maxPages: totalPages,
+            apiError: "Gmail API request failed, showing mock data"
+          });
+        }
+      }
     } catch (error) {
       console.error("Gmail messages error:", error);
       res.status(500).json({
