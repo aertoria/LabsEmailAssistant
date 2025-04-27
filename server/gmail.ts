@@ -102,17 +102,36 @@ export function setupGmail(app: Express, storage: IStorage) {
     }
   };
 
-  // Get Gmail client
+  // Get Gmail client with token refresh handling
   const getGmailClient = async (user: any) => {
-    const oauth2Client = createOAuth2Client();
-    
-    // Set credentials from stored tokens
-    oauth2Client.setCredentials({
-      access_token: user.accessToken,
-      refresh_token: user.refreshToken,
-    });
+    try {
+      const oauth2Client = createOAuth2Client();
+      
+      // Set credentials from stored tokens
+      oauth2Client.setCredentials({
+        access_token: user.accessToken,
+        refresh_token: user.refreshToken,
+        expiry_date: user.expiryDate ? new Date(user.expiryDate).getTime() : undefined
+      });
 
-    return google.gmail({ version: "v1", auth: oauth2Client });
+      // Test if the client is valid by making a minimal API call
+      const gmail = google.gmail({ version: "v1", auth: oauth2Client });
+      
+      return gmail;
+    } catch (error: any) {
+      console.error("Error creating Gmail client:", error);
+      
+      // Check for specific token errors
+      if (error.message && (
+        error.message.includes('invalid_grant') || 
+        error.message.includes('invalid_token') ||
+        error.message.includes('token expired')
+      )) {
+        throw new Error(`Auth token error: ${error.message}`);
+      }
+      
+      throw error;
+    }
   };
   
   // Fetch emails from Gmail API with limit of 100 emails or emails from the last day
@@ -158,93 +177,111 @@ export function setupGmail(app: Express, storage: IStorage) {
       
       console.log(`Fetching page ${page} of emails from Gmail API (limited to 10 or last day)`);
       
-      // Use our function to fetch limited emails from Gmail API
-      const gmailData = await fetchLimitedEmails(req.user, page, pageSize);
-      
-      // Fetch details for each message to get real email content
-      const formattedMessages = await Promise.all(
-        gmailData.messages.map(async (msg: any) => {
-          try {
-            // Import the Google API library
-            const { google } = require('googleapis');
-            
-            // Create a new OAuth2 client
-            const oauth2Client = new google.auth.OAuth2();
-            
-            // Set the credentials
-            oauth2Client.setCredentials({
-              access_token: req.user?.accessToken
-            });
-            
-            // Create Gmail API client
-            const gmail = google.gmail({ version: 'v1', auth: oauth2Client });
-            
-            // Fetch the full message details for each message ID
-            const messageDetail = await gmail.users.messages.get({
-              userId: 'me',
-              id: msg.id,
-              format: 'full' // Get full message details
-            });
-            
-            const data = messageDetail.data;
-            const headers = data.payload?.headers || [];
-            
-            // Define header type
-            interface MessageHeader {
-              name: string;
-              value: string;
+      try {
+        // Use our function to fetch limited emails from Gmail API
+        const gmailData = await fetchLimitedEmails(req.user, page, pageSize);
+        
+        // Fetch details for each message to get real email content
+        const formattedMessages = await Promise.all(
+          gmailData.messages.map(async (msg: any) => {
+            try {
+              // Get Gmail client with proper error handling
+              const gmail = await getGmailClient(req.user);
+              
+              // Fetch the full message details for each message ID
+              const messageDetail = await gmail.users.messages.get({
+                userId: 'me',
+                id: msg.id,
+                format: 'full' // Get full message details
+              });
+              
+              const data = messageDetail.data;
+              const headers = data.payload?.headers || [];
+              
+              // Define header type
+              interface MessageHeader {
+                name: string;
+                value: string;
+              }
+              
+              // Extract email metadata from headers
+              const subject = headers.find((h: MessageHeader) => h.name === 'Subject')?.value || 'No Subject';
+              const from = headers.find((h: MessageHeader) => h.name === 'From')?.value || 'Unknown Sender';
+              const date = headers.find((h: MessageHeader) => h.name === 'Date')?.value;
+              
+              // Check if the message has been read
+              const isUnread = data.labelIds?.includes('UNREAD') || false;
+              const isStarred = data.labelIds?.includes('STARRED') || false;
+              
+              // Format the date
+              const receivedDate = date ? new Date(date).toISOString() : new Date().toISOString();
+              
+              return {
+                id: msg.id,
+                threadId: msg.threadId,
+                from: from,
+                subject: subject,
+                snippet: data.snippet || 'No preview available',
+                receivedAt: receivedDate,
+                isRead: !isUnread,
+                isStarred: isStarred
+              };
+            } catch (error) {
+              console.error(`Error fetching details for message ${msg.id}:`, error);
+              // Return a fallback if we can't get details
+              return {
+                id: msg.id,
+                threadId: msg.threadId,
+                from: "Gmail Message",
+                subject: "Could not retrieve details",
+                snippet: "Error loading email content...",
+                receivedAt: new Date().toISOString(),
+                isRead: true,
+                isStarred: false
+              };
             }
-            
-            // Extract email metadata from headers
-            const subject = headers.find((h: MessageHeader) => h.name === 'Subject')?.value || 'No Subject';
-            const from = headers.find((h: MessageHeader) => h.name === 'From')?.value || 'Unknown Sender';
-            const date = headers.find((h: MessageHeader) => h.name === 'Date')?.value;
-            
-            // Check if the message has been read
-            const isUnread = data.labelIds?.includes('UNREAD') || false;
-            const isStarred = data.labelIds?.includes('STARRED') || false;
-            
-            // Format the date
-            const receivedDate = date ? new Date(date).toISOString() : new Date().toISOString();
-            
-            return {
-              id: msg.id,
-              threadId: msg.threadId,
-              from: from,
-              subject: subject,
-              snippet: data.snippet || 'No preview available',
-              receivedAt: receivedDate,
-              isRead: !isUnread,
-              isStarred: isStarred
-            };
-          } catch (error) {
-            console.error(`Error fetching details for message ${msg.id}:`, error);
-            // Return a fallback if we can't get details
-            return {
-              id: msg.id,
-              threadId: msg.threadId,
-              from: "Gmail Message",
-              subject: "Could not retrieve details",
-              snippet: "Error loading email content...",
-              receivedAt: new Date().toISOString(),
-              isRead: true,
-              isStarred: false
-            };
+          })
+        );
+        
+        return res.status(200).json({
+          messages: formattedMessages,
+          nextPageToken: gmailData.nextPageToken || null,
+          totalCount: gmailData.resultSizeEstimate || formattedMessages.length,
+          maxReached: false,
+          page: page
+        });
+      } catch (tokenError: any) {
+        // Handle token errors specifically
+        if (tokenError.message && (
+          tokenError.message.includes('invalid_grant') || 
+          tokenError.message.includes('invalid_token') ||
+          tokenError.message.includes('token expired') ||
+          tokenError.message.includes('Auth token error')
+        )) {
+          console.error("Gmail token error - user needs to re-authenticate:", tokenError.message);
+          
+          // Clear user session to force re-authentication
+          if (req.session) {
+            req.session.destroy((err) => {
+              if (err) console.error("Error destroying session:", err);
+            });
           }
-        })
-      );
-      
-      return res.status(200).json({
-        messages: formattedMessages,
-        nextPageToken: gmailData.nextPageToken || null,
-        totalCount: gmailData.resultSizeEstimate || formattedMessages.length,
-        maxReached: false,
-        page: page
-      });
-    } catch (error) {
+          
+          // Return 401 to trigger re-authentication on the client
+          return res.status(401).json({
+            message: "Authentication expired, please sign in again",
+            error: "token_expired"
+          });
+        }
+        
+        // Re-throw other errors to be caught by the outer catch
+        throw tokenError;
+      }
+    } catch (error: any) {
       console.error("Gmail messages error:", error);
       res.status(500).json({
         message: "Failed to fetch messages",
+        error: error.message || String(error)
       });
     }
   });
@@ -256,64 +293,91 @@ export function setupGmail(app: Express, storage: IStorage) {
       
       console.log(`Fetching real message from Gmail API for ID: ${id}`);
       
-      // Get Gmail client
-      const gmail = await getGmailClient(req.user);
-      
-      // Fetch full message details including body
-      const messageDetail = await gmail.users.messages.get({
-        userId: 'me',
-        id: id,
-        format: 'full'
-      });
-      
-      const data = messageDetail.data;
-      const headers = data.payload?.headers || [];
-      
-      // Define header type
-      interface MessageHeader {
-        name: string;
-        value: string;
-      }
-      
-      // Extract email metadata from headers - type-safe implementation
-      const subject = headers.find(h => h.name === 'Subject')?.value ?? 'No Subject';
-      const from = headers.find(h => h.name === 'From')?.value ?? 'Unknown Sender';
-      const to = headers.find(h => h.name === 'To')?.value ?? '';
-      const date = headers.find(h => h.name === 'Date')?.value;
-      
-      // Check if the message has been read
-      const isUnread = data.labelIds?.includes('UNREAD') || false;
-      const isStarred = data.labelIds?.includes('STARRED') || false;
-      
-      // Extract body content (HTML if available, otherwise plain text)
-      let bodyContent = '';
-      
-      // Extract body from message payload
-      if (data.payload) {
-        // Helper function to extract recursively but not defined inline to avoid strict mode issues
-        const extractedContent = extractBodyContent(data.payload);
-        bodyContent = extractedContent || 'No message content available';
-      }
-      
-      // Format the date
-      const receivedDate = date ? new Date(date).toISOString() : new Date().toISOString();
-      
-      // Build complete message object
-      const formattedMessage = {
-        id: id,
-        threadId: data.threadId,
-        from: from,
-        to: to,
-        subject: subject,
-        date: receivedDate,
-        body: bodyContent,
-        snippet: data.snippet || '',
-        labelIds: data.labelIds || [],
-        isUnread: isUnread,
-        isStarred: isStarred,
-      };
+      try {
+        // Get Gmail client
+        const gmail = await getGmailClient(req.user);
+        
+        // Fetch full message details including body
+        const messageDetail = await gmail.users.messages.get({
+          userId: 'me',
+          id: id,
+          format: 'full'
+        });
+        
+        const data = messageDetail.data;
+        const headers = data.payload?.headers || [];
+        
+        // Define header type
+        interface MessageHeader {
+          name: string;
+          value: string;
+        }
+        
+        // Extract email metadata from headers - type-safe implementation
+        const subject = headers.find(h => h.name === 'Subject')?.value ?? 'No Subject';
+        const from = headers.find(h => h.name === 'From')?.value ?? 'Unknown Sender';
+        const to = headers.find(h => h.name === 'To')?.value ?? '';
+        const date = headers.find(h => h.name === 'Date')?.value;
+        
+        // Check if the message has been read
+        const isUnread = data.labelIds?.includes('UNREAD') || false;
+        const isStarred = data.labelIds?.includes('STARRED') || false;
+        
+        // Extract body content (HTML if available, otherwise plain text)
+        let bodyContent = '';
+        
+        // Extract body from message payload
+        if (data.payload) {
+          // Helper function to extract recursively but not defined inline to avoid strict mode issues
+          const extractedContent = extractBodyContent(data.payload);
+          bodyContent = extractedContent || 'No message content available';
+        }
+        
+        // Format the date
+        const receivedDate = date ? new Date(date).toISOString() : new Date().toISOString();
+        
+        // Build complete message object
+        const formattedMessage = {
+          id: id,
+          threadId: data.threadId,
+          from: from,
+          to: to,
+          subject: subject,
+          date: receivedDate,
+          body: bodyContent,
+          snippet: data.snippet || '',
+          labelIds: data.labelIds || [],
+          isUnread: isUnread,
+          isStarred: isStarred,
+        };
 
-      res.status(200).json(formattedMessage);
+        res.status(200).json(formattedMessage);
+      } catch (tokenError: any) {
+        // Handle token errors specifically
+        if (tokenError.message && (
+          tokenError.message.includes('invalid_grant') || 
+          tokenError.message.includes('invalid_token') ||
+          tokenError.message.includes('token expired') ||
+          tokenError.message.includes('Auth token error')
+        )) {
+          console.error("Gmail token error - user needs to re-authenticate:", tokenError.message);
+          
+          // Clear user session to force re-authentication
+          if (req.session) {
+            req.session.destroy((err) => {
+              if (err) console.error("Error destroying session:", err);
+            });
+          }
+          
+          // Return 401 to trigger re-authentication on the client
+          return res.status(401).json({
+            message: "Authentication expired, please sign in again",
+            error: "token_expired"
+          });
+        }
+        
+        throw tokenError;
+      }
     } catch (error: any) {
       console.error("Gmail message error:", error);
       res.status(500).json({
@@ -478,19 +542,7 @@ export function setupGmail(app: Express, storage: IStorage) {
       // Calculate percentage
       const percentUsed = Math.round((usedBytes / totalBytes) * 100);
       
-      // Format human-readable sizes
-      function formatSize(bytes: number): string {
-        const units = ['B', 'KB', 'MB', 'GB', 'TB'];
-        let size = bytes;
-        let unitIndex = 0;
-        
-        while (size >= 1024 && unitIndex < units.length - 1) {
-          size /= 1024;
-          unitIndex++;
-        }
-        
-        return `${size.toFixed(2)} ${units[unitIndex]}`;
-      }
+      // Use the globally defined formatSize helper function
       
       const storageInfo = {
         totalBytes: totalBytes,

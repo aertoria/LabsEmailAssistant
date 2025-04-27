@@ -340,6 +340,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // Reset auth check flag so we can check again on next mount if needed
       hasCheckedAuth = false;
       
+      // Also clear localStorage
+      localStorage.removeItem('gmail_app_user');
+      
       // Clear all queries
       queryClient.clear();
       

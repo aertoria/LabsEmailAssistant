@@ -2,6 +2,38 @@ import { QueryClient, QueryFunction } from "@tanstack/react-query";
 
 async function throwIfResNotOk(res: Response) {
   if (!res.ok) {
+    // Handle authentication errors specially
+    if (res.status === 401) {
+      console.warn("Auth error detected in API request, clearing local storage");
+      localStorage.removeItem('gmail_app_user');
+      
+      try {
+        // Try to parse the response to see if it contains a token_expired error
+        const errorText = await res.text();
+        let errorObj = {};
+        try {
+          errorObj = JSON.parse(errorText);
+        } catch (e) {
+          // Not JSON, use the text directly
+        }
+        
+        // Include special error_type for 401s so they can be handled differently
+        throw new Error(`${res.status}: ${errorText}`, { 
+          cause: { 
+            status: 401, 
+            error_type: 'auth_error',
+            ...errorObj
+          } 
+        });
+      } catch (e) {
+        // If we can't parse the response, just throw a generic auth error
+        throw new Error(`${res.status}: Authentication failed`, { 
+          cause: { status: 401, error_type: 'auth_error' } 
+        });
+      }
+    }
+    
+    // Handle all other errors
     const text = (await res.text()) || res.statusText;
     throw new Error(`${res.status}: ${text}`);
   }
