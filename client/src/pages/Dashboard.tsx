@@ -93,11 +93,11 @@ export default function Dashboard() {
     window.location.href = '/';
   };
 
-  // Fetch sync status
+  // Fetch sync status once without continuous refetching
   const { data: syncStatus } = useQuery({
     queryKey: ['/api/gmail/sync/status'],
-    staleTime: 5000,
-    refetchInterval: 5000,
+    staleTime: Infinity, // Never consider data stale
+    refetchInterval: false, // Don't automatically refetch
     enabled: isAuthenticated,
     queryFn: async ({ queryKey }) => {
       try {

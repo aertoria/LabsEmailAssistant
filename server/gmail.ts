@@ -110,7 +110,7 @@ export function setupGmail(app: Express, storage: IStorage) {
       
       const response = await gmail.users.messages.list({
         userId: 'me',
-        maxResults: 100, // Max emails to return
+        maxResults: 10, // Max emails to return (reduced from 100 to 10)
         q: query,
         pageToken: page > 1 ? `page${page - 1}` : undefined
       });
@@ -396,8 +396,8 @@ export function setupGmail(app: Express, storage: IStorage) {
   app.get("/api/gmail/sync/status", authMiddleware, async (req: Request, res: Response) => {
     try {
       // In a real app, this would track actual sync progress
-      // Limiting to 100 emails as requested by the user
-      const total = 100;
+      // Limiting to 10 emails as requested by the user
+      const total = 10; 
       const processed = Math.floor(total * 0.65); // 65% complete
       
       const syncStatus = {
