@@ -1,0 +1,10 @@
+Google sign-in error: 
+Error {}
+message: "Auth not available"
+stack: "Error: Auth not available↵ at handleGoogleSignIn (https://6584956c-93f8-4767-97a8-6217662ab52c-00-3eih5uenxnhz1.worf.replit.dev/src/pages/Login.tsx:32:15)↵ at onGoogleSignInClick (https://6584956c-93f8-4767-97a8-6217662ab52c-00-3eih5uenxnhz1.worf.replit.dev/src/pages/Login.tsx:58:13)↵ at HTMLUnknownElement.callCallback2 (https://6584956c-93f8-4767-97a8-6217662ab52c-00-3eih5uenxnhz1.worf.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/chunk-WERSD76P.js?v=03a8e275:3674:22)↵ at Object.invokeGuardedCallbackDev (https://6584956c-93f8-4767-97a8-6217662ab52c-00-3eih5uenxnhz1.worf.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/chunk-WERSD76P.js?v=03a8e275:3699:24)↵ at invokeGuardedCallback (https://6584956c-93f8-4767-97a8-6217662ab52c-00-3eih5uenxnhz1.worf.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/chunk-WERSD76P.js?v=03a8e275:3733:39)↵ at invokeGuardedCallbackAndCatchFirstError (https://6584956c-93f8-4767-97a8-6217662ab52c-00-3eih5uenxnhz1.worf.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/chunk-WERSD76P.js?v=03a8e275:3736:33)↵ at executeDispatch (https://6584956c-93f8-4767-97a8-6217662ab52c-00-3eih5uenxnhz1.worf.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/chunk-WERSD76P.js?v=03a8e275:7014:11)↵ at processDispatchQueueItemsInOrder (https://6584956c-93f8-4767-97a8-6217662ab52c-00-3eih5uenxnhz1.worf.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/chunk-WERSD76P.js?v=03a8e275:7034:15)↵ at processDispatchQueue (https://6584956c-93f8-4767-97a8-6217662ab52c-00-3eih5uenxnhz1.worf.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/chunk-WERSD76P.js?v=03a8e275:7043:13)↵ at dispatchEventsForPlugins (https://6584956c-93f8-4767-97a8-6217662ab52c-00-3eih5uenxnhz1.worf.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/chunk-WERSD76P.js?v=03a8e275:7051:11)"
+get stack: ƒ ()
+set stack: ƒ ()
+length: 1
+name: ""
+[[Prototype]]: ƒ ()
+[[Prototype]]: Object

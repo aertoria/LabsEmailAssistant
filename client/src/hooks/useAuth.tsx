@@ -39,8 +39,9 @@ if (typeof window !== 'undefined') {
   loadGoogleAuthScript();
 }
 
-// Function to initialize Google auth - kept for compatibility
-export function initGoogleAuth() {
+// Function to initialize Google auth - Not used anymore, but kept for compatibility
+// This should not be a component to avoid Fast Refresh issues
+function initGoogleAuth() {
   if (typeof window !== 'undefined') {
     loadGoogleAuthScript();
   }
@@ -68,23 +69,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           if (data.authenticated) {
             setIsAuthenticated(true);
             setUser(data.user);
-          } else {
-            // If not authenticated via API, try localStorage
-            const savedUser = localStorage.getItem('gmail_app_user');
-            if (savedUser) {
-              console.log('User found in localStorage:', savedUser);
-              setIsAuthenticated(true);
-              setUser(JSON.parse(savedUser));
-            }
+            return; // Return early if authenticated via API
           }
-        } else {
-          // If API fails, try localStorage
-          const savedUser = localStorage.getItem('gmail_app_user');
-          if (savedUser) {
-            console.log('User found in localStorage:', savedUser);
-            setIsAuthenticated(true);
-            setUser(JSON.parse(savedUser));
-          }
+        }
+        
+        // Check localStorage as fallback
+        const savedUser = localStorage.getItem('gmail_app_user');
+        if (savedUser) {
+          console.log('User found in localStorage:', savedUser);
+          setIsAuthenticated(true);
+          setUser(JSON.parse(savedUser));
         }
       } catch (error) {
         console.error('Failed to check auth status:', error);
@@ -276,15 +270,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               buttonContainer.innerHTML = '';
               
               // Render a Google Sign-In button
-              window.google.accounts.id.renderButton(buttonContainer, {
-                type: 'standard',
-                theme: 'outline',
-                size: 'large',
-                text: 'signin_with',
-                shape: 'rectangular',
-                logo_alignment: 'left',
-                width: 250
-              });
+              if (window.google && window.google.accounts) {
+                window.google.accounts.id.renderButton(buttonContainer, {
+                  type: 'standard',
+                  theme: 'outline',
+                  size: 'large',
+                  text: 'signin_with',
+                  shape: 'rectangular',
+                  logo_alignment: 'left',
+                  width: 250
+                });
+              }
               console.log('Google Sign-In button created');
             } else {
               console.error('Google sign-in button container not found');
