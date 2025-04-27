@@ -306,13 +306,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signOut = async () => {
     try {
-      // Clear localStorage
-      localStorage.removeItem('gmail_app_user');
-      
-      // Clear server session
-      await apiRequest('POST', '/api/auth/logout', {});
-      
-      // Update state
+      // Update state immediately
       setIsAuthenticated(false);
       setUser(null);
       
@@ -322,29 +316,32 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // Clear all queries
       queryClient.clear();
       
+      // Show success toast
       toast({
         title: "Signed out successfully",
         description: "You have been signed out of your account"
       });
       
+      // Navigate back to login page
       setLocation('/');
-    } catch (error) {
-      // Clear localStorage even if API fails
-      localStorage.removeItem('gmail_app_user');
       
-      // Update state
+      // Clear server session in the background
+      await apiRequest('POST', '/api/auth/logout', {});
+    } catch (error) {
+      console.error("Error during sign out:", error);
+      
+      // Still make sure we're signed out locally
       setIsAuthenticated(false);
       setUser(null);
       
       // Reset auth check flag
       hasCheckedAuth = false;
       
-      toast({
-        title: "Signed out successfully",
-        description: "You have been signed out of your account"
-      });
-      
+      // Navigate back to login page
       setLocation('/');
+    } finally {
+      // Always clear localStorage
+      localStorage.removeItem('gmail_app_user');
     }
   };
 

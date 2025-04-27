@@ -77,20 +77,20 @@ export default function Dashboard() {
   // Use whichever user we have
   const user = authUser || localUser;
   
-  // Handle sign out
+  // Handle sign out with immediate redirect to login page
   const handleSignOut = async () => {
-    // Clear local storage
+    // Clear local storage first for immediate effect
     localStorage.removeItem('gmail_app_user');
     
-    // Try auth provider sign out if available
+    // Redirect to login page immediately
+    setLocation('/');
+    
+    // Then sign out from the auth provider in the background
     try {
       await signOut();
     } catch (e) {
       console.log("Auth provider signout failed, already handled locally");
     }
-    
-    // Use React Router for navigation
-    setLocation('/');
   };
 
   // Fetch sync status once without continuous refetching
