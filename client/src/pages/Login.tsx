@@ -12,12 +12,12 @@ export default function Login() {
   const buttonRef = useRef<HTMLButtonElement>(null);
   const googleButtonRef = useRef<HTMLDivElement>(null);
 
-  // Redirect if already authenticated - using direct navigation to avoid React state issues
+  // Redirect if already authenticated using React Router
   useEffect(() => {
     if (isAuthenticated) {
-      window.location.href = "/dashboard";
+      setLocation("/dashboard");
     }
-  }, [isAuthenticated]);
+  }, [isAuthenticated, setLocation]);
 
   // Create a simple Google Sign-In function
   const onGoogleSignInClick = async () => {
@@ -105,8 +105,14 @@ export default function Login() {
                       // Store in localStorage for persistence
                       localStorage.setItem('gmail_app_user', JSON.stringify(demoUser));
                       
-                      // Redirect to dashboard using direct navigation
-                      window.location.href = "/dashboard";
+                      // Show success toast
+                      toast({
+                        title: "Demo Login Successful",
+                        description: "Welcome to the Gmail app demo!"
+                      });
+                      
+                      // Redirect to dashboard using React Router
+                      setLocation("/dashboard");
                     } catch (error) {
                       console.error("Error setting up demo user:", error);
                       toast({

@@ -61,7 +61,7 @@ export default function Dashboard() {
       // If no auth from either source, redirect once
       if (!hasLocalUser && !authProviderAuthenticated) {
         console.log("No authentication found, redirecting to login");
-        window.location.href = '/'; // Hard navigation to avoid React state issues
+        setLocation('/'); // Use React Router instead of hard navigation
         return false;
       }
       
@@ -89,8 +89,8 @@ export default function Dashboard() {
       console.log("Auth provider signout failed, already handled locally");
     }
     
-    // Use hard navigation to avoid state issues
-    window.location.href = '/';
+    // Use React Router for navigation
+    setLocation('/');
   };
 
   // Fetch sync status once without continuous refetching

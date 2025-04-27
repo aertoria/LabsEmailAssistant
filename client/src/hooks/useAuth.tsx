@@ -245,8 +245,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               
               resolve();
               
-              // Navigate after authentication using direct navigation
-              window.location.href = '/dashboard';
+              // Navigate after authentication using React Router instead of page reload
+              setLocation('/dashboard');
             } catch (error) {
               console.error('Authentication error with backend:', error);
               
