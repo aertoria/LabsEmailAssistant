@@ -23,7 +23,23 @@ export function EmailList() {
       try {
         // Check if we have a demo user in localStorage
         const storedUser = localStorage.getItem('gmail_app_user');
-        const isDemoMode = storedUser !== null;
+        
+        // Parse the stored user to see if it's a demo user or real Google user
+        let isDemoMode = false;
+        
+        if (storedUser) {
+          try {
+            const parsedUser = JSON.parse(storedUser);
+            // Check if this is a demo user (without Google authentication)
+            isDemoMode = !parsedUser.googleId;
+            
+            console.log("User authentication type:", 
+              isDemoMode ? "Demo user (no Google auth)" : "Real Google authenticated user");
+          } catch (e) {
+            console.error("Error parsing stored user:", e);
+            isDemoMode = true; // Fallback to demo mode if we can't parse
+          }
+        }
         
         // Add demo parameter to request if we're in demo mode
         const url = isDemoMode 

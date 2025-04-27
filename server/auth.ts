@@ -113,12 +113,13 @@ export function setupAuth(app: Express, storage: IStorage) {
         // Continue anyway to not block the sign-in process
       }
       
-      // Return the user data
+      // Return the user data including googleId to identify real Google users
       res.status(200).json({
         user: {
           id: user.id,
           email: user.email,
           name: user.name,
+          googleId: user.googleId || payload.sub, // Include the Google ID so the frontend knows this is a real Google user
         },
         message: "Successfully authenticated with Google",
       });
