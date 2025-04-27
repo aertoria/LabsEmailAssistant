@@ -57,8 +57,20 @@ const formatSize = (bytes: number): string => {
   return `${size.toFixed(2)} ${units[unitIndex]}`;
 };
 
+// Global reference for the app to use with token refresh
+declare global {
+  namespace NodeJS {
+    interface Global {
+      appStorage?: IStorage;
+    }
+  }
+}
+
 // Setup Gmail API routes
 export function setupGmail(app: Express, storage: IStorage) {
+  // Store the storage reference globally for token refresh handling
+  (global as any).appStorage = storage;
+  
   // Authentication middleware - requires real session authentication
   const authMiddleware = async (req: Request, res: Response, next: Function) => {
     // Check for real authenticated session with a user
@@ -127,9 +139,8 @@ export function setupGmail(app: Express, storage: IStorage) {
           console.log('Token refresh occurred, updating stored tokens');
           // Only update if we have an access token
           if (tokens.access_token) {
-            // Update user with refreshed tokens in a way that doesn't depend on req
-            // We'll use the storage instance that was passed to setupGmail
-            const storage = app.locals.storage;
+            // Use the globally stored storage reference
+            const storage = (global as any).appStorage;
             if (storage && typeof storage.updateUserTokens === 'function') {
               await storage.updateUserTokens(
                 user.id,
@@ -227,16 +238,10 @@ export function setupGmail(app: Express, storage: IStorage) {
               const data = messageDetail.data;
               const headers = data.payload?.headers || [];
               
-              // Define header type
-              interface MessageHeader {
-                name: string;
-                value: string;
-              }
-              
-              // Extract email metadata from headers
-              const subject = headers.find((h: MessageHeader) => h.name === 'Subject')?.value || 'No Subject';
-              const from = headers.find((h: MessageHeader) => h.name === 'From')?.value || 'Unknown Sender';
-              const date = headers.find((h: MessageHeader) => h.name === 'Date')?.value;
+              // Extract email metadata from headers safely
+              const subject = headers.find((h: any) => h.name === 'Subject')?.value || 'No Subject';
+              const from = headers.find((h: any) => h.name === 'From')?.value || 'Unknown Sender';
+              const date = headers.find((h: any) => h.name === 'Date')?.value;
               
               // Check if the message has been read
               const isUnread = data.labelIds?.includes('UNREAD') || false;
@@ -336,17 +341,11 @@ export function setupGmail(app: Express, storage: IStorage) {
         const data = messageDetail.data;
         const headers = data.payload?.headers || [];
         
-        // Define header type
-        interface MessageHeader {
-          name: string;
-          value: string;
-        }
-        
-        // Extract email metadata from headers - type-safe implementation
-        const subject = headers.find(h => h.name === 'Subject')?.value ?? 'No Subject';
-        const from = headers.find(h => h.name === 'From')?.value ?? 'Unknown Sender';
-        const to = headers.find(h => h.name === 'To')?.value ?? '';
-        const date = headers.find(h => h.name === 'Date')?.value;
+        // Extract email metadata from headers - using any type to work with Gmail API headers
+        const subject = headers.find((h: any) => h.name === 'Subject')?.value ?? 'No Subject';
+        const from = headers.find((h: any) => h.name === 'From')?.value ?? 'Unknown Sender';
+        const to = headers.find((h: any) => h.name === 'To')?.value ?? '';
+        const date = headers.find((h: any) => h.name === 'Date')?.value;
         
         // Check if the message has been read
         const isUnread = data.labelIds?.includes('UNREAD') || false;
