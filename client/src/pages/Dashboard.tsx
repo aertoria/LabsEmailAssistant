@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useLocation } from "wouter";
 import { Header } from "@/components/Header";
 import { Sidebar } from "@/components/Sidebar";
@@ -110,9 +110,13 @@ export default function Dashboard() {
     }
   });
 
-  // Redirect if not authenticated
+  // Redirect if not authenticated - using a ref to prevent infinite redirects
+  const redirectAttemptedRef = useRef(false);
+  
   useEffect(() => {
-    if (!isAuthenticated && !localUser) {
+    // Only attempt to redirect once to prevent infinite loops
+    if (!isAuthenticated && !localUser && !redirectAttemptedRef.current) {
+      redirectAttemptedRef.current = true;
       setLocation("/");
     }
   }, [isAuthenticated, localUser, setLocation]);

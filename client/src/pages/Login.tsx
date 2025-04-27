@@ -2,7 +2,6 @@ import { useEffect, useState, useRef } from "react";
 import { useLocation } from "wouter";
 import { Card, CardContent } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
-import { GoogleAuthSetupHelp } from "@/components/GoogleAuthSetupHelp";
 import { useAuth } from "@/hooks/useAuth";
 
 export default function Login() {
@@ -141,7 +140,14 @@ export default function Login() {
                    <code className="bg-gray-100 px-1">{window.location.origin}/api/auth/callback</code>
                 </p>
                 
-                <GoogleAuthSetupHelp />
+                <button 
+                  className="mt-2 text-blue-600 hover:underline"
+                  onClick={() => {
+                    window.open('https://console.cloud.google.com/apis/credentials', '_blank');
+                  }}
+                >
+                  Open Google Cloud Console
+                </button>
               </div>
             </div>
             
