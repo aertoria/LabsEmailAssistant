@@ -30,13 +30,28 @@ const createOAuth2Client = () => {
 export function setupGmail(app: Express, storage: IStorage) {
   // Authentication middleware - supports both session and demo mode
   const authMiddleware = async (req: Request, res: Response, next: Function) => {
-    // Check for demo mode header or query parameter
+    // First check if this is a real authenticated session with a user
+    if (req.session.userId) {
+      try {
+        const user = await storage.getUser(req.session.userId);
+        
+        if (user) {
+          console.log(`[AUTH] Using real user authentication for ${user.email}`);
+          req.user = user;
+          return next();
+        }
+      } catch (error) {
+        console.error("Auth middleware error:", error);
+      }
+    }
+    
+    // Check for demo mode header or query parameter as fallback
     const isDemoMode = 
       req.headers['x-demo-mode'] === 'true' || 
       req.query.demo === 'true';
     
     if (isDemoMode) {
-      console.log("Using demo mode authentication");
+      console.log("[AUTH] Using demo mode authentication");
       // Create a demo user for the request
       req.user = {
         id: 999,

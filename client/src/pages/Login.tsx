@@ -14,10 +14,13 @@ export default function Login() {
 
   // Redirect if already authenticated using React Router
   useEffect(() => {
+    // Only redirect if we're authenticated
     if (isAuthenticated) {
-      setLocation("/dashboard");
+      console.log("User is authenticated, redirecting to dashboard");
+      // Use a direct location change to avoid potential infinite loops
+      window.location.href = "/dashboard";
     }
-  }, [isAuthenticated, setLocation]);
+  }, [isAuthenticated]);
 
   // Create a simple Google Sign-In function
   const onGoogleSignInClick = async () => {

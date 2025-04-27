@@ -66,11 +66,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         // Always check localStorage first for faster loading
         const savedUser = localStorage.getItem('gmail_app_user');
         if (savedUser) {
-          console.log('User found in localStorage');
-          setIsAuthenticated(true);
-          setUser(JSON.parse(savedUser));
-          setIsInitialized(true);
-          return; // Return early with localStorage user
+          try {
+            const parsedUser = JSON.parse(savedUser);
+            console.log('User found in localStorage');
+            
+            // Check if this is a real Google user or demo user
+            if (parsedUser.googleId) {
+              console.log('Real Google authenticated user detected with ID:', parsedUser.googleId);
+            } else {
+              console.log('Demo user detected (no Google authentication)');
+            }
+            
+            setIsAuthenticated(true);
+            setUser(parsedUser);
+            setIsInitialized(true);
+            return; // Return early with localStorage user
+          } catch (e) {
+            console.error('Error parsing user from localStorage:', e);
+          }
         }
         
         // If no localStorage user, try API ONCE
