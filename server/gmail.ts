@@ -478,6 +478,20 @@ export function setupGmail(app: Express, storage: IStorage) {
       // Calculate percentage
       const percentUsed = Math.round((usedBytes / totalBytes) * 100);
       
+      // Format human-readable sizes
+      function formatSize(bytes: number): string {
+        const units = ['B', 'KB', 'MB', 'GB', 'TB'];
+        let size = bytes;
+        let unitIndex = 0;
+        
+        while (size >= 1024 && unitIndex < units.length - 1) {
+          size /= 1024;
+          unitIndex++;
+        }
+        
+        return `${size.toFixed(2)} ${units[unitIndex]}`;
+      }
+      
       const storageInfo = {
         totalBytes: totalBytes,
         usedBytes: usedBytes,
@@ -487,11 +501,11 @@ export function setupGmail(app: Express, storage: IStorage) {
       };
 
       res.status(200).json(storageInfo);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Gmail storage info error:", error);
       res.status(500).json({
         message: "Failed to fetch storage information from Gmail API",
-        error: error.message
+        error: error.message || String(error)
       });
     }
   });

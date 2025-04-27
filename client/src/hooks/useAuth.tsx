@@ -70,11 +70,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             const parsedUser = JSON.parse(savedUser);
             console.log('User found in localStorage');
             
-            // Check if this is a real Google user or demo user
+            // Verify this is a real Google user
             if (parsedUser.googleId) {
-              console.log('Real Google authenticated user detected with ID:', parsedUser.googleId);
+              console.log('Google authenticated user detected with ID:', parsedUser.googleId);
             } else {
-              console.log('Demo user detected (no Google authentication)');
+              console.log('User has no Google authentication ID, clearing session');
+              localStorage.removeItem('gmail_app_user');
+              return; // Skip authentication if not a real Google user
             }
             
             setIsAuthenticated(true);
@@ -113,12 +115,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       } catch (error) {
         console.error('Failed to check auth status:', error);
         
-        // Fallback to localStorage if API fails
+        // Only use real Google users - no fallback to localStorage without verification
         const savedUser = localStorage.getItem('gmail_app_user');
         if (savedUser) {
-          console.log('User found in localStorage after error');
-          setIsAuthenticated(true);
-          setUser(JSON.parse(savedUser));
+          try {
+            const parsedUser = JSON.parse(savedUser);
+            // Only use the saved user if they have a real Google ID
+            if (parsedUser.googleId) {
+              console.log('Verified Google user found in localStorage after API error');
+              setIsAuthenticated(true);
+              setUser(parsedUser);
+            } else {
+              // Clear invalid user data
+              localStorage.removeItem('gmail_app_user');
+            }
+          } catch (e) {
+            // Clear corrupted data
+            localStorage.removeItem('gmail_app_user');
+          }
         }
         
         setIsInitialized(true);
