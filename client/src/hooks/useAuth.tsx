@@ -39,13 +39,8 @@ if (typeof window !== 'undefined') {
   loadGoogleAuthScript();
 }
 
-// Function to initialize Google auth - Not used anymore, but kept for compatibility
-// This should not be a component to avoid Fast Refresh issues
-function initGoogleAuth() {
-  if (typeof window !== 'undefined') {
-    loadGoogleAuthScript();
-  }
-}
+// Global variable to prevent multiple auth checks
+let hasCheckedAuth = false;
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -55,24 +50,31 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  // Check auth status on mount - with localStorage fallback for demo
+  // Check auth status ONCE on component mount
   useEffect(() => {
-    // Skip if already initialized
-    if (isInitialized) return;
+    // Skip if already initialized or if we've already checked auth
+    if (isInitialized || hasCheckedAuth) {
+      setIsInitialized(true);
+      return;
+    }
     
     const checkAuthStatus = async () => {
       try {
+        // Mark that we've checked auth to prevent repeated checks
+        hasCheckedAuth = true;
+        
         // Always check localStorage first for faster loading
         const savedUser = localStorage.getItem('gmail_app_user');
         if (savedUser) {
-          console.log('User found in localStorage:', savedUser);
+          console.log('User found in localStorage');
           setIsAuthenticated(true);
           setUser(JSON.parse(savedUser));
           setIsInitialized(true);
           return; // Return early with localStorage user
         }
         
-        // If no localStorage user, try API
+        // If no localStorage user, try API ONCE
+        console.log('No localStorage user, checking API once');
         const response = await fetch('/api/auth/status', {
           credentials: 'include'
         });
@@ -80,14 +82,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (response.ok) {
           const data = await response.json();
           if (data.authenticated) {
+            console.log('User authenticated via API');
             setIsAuthenticated(true);
             setUser(data.user);
+            
+            // Also save to localStorage to avoid future API calls
+            localStorage.setItem('gmail_app_user', JSON.stringify(data.user));
+            
             setIsInitialized(true);
             return;
           }
         }
         
         // No user found in either source
+        console.log('No authenticated user found');
         setIsInitialized(true);
       } catch (error) {
         console.error('Failed to check auth status:', error);
@@ -95,7 +103,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         // Fallback to localStorage if API fails
         const savedUser = localStorage.getItem('gmail_app_user');
         if (savedUser) {
-          console.log('User found in localStorage after error:', savedUser);
+          console.log('User found in localStorage after error');
           setIsAuthenticated(true);
           setUser(JSON.parse(savedUser));
         }
@@ -104,8 +112,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     };
 
+    // Check auth once and never again
     checkAuthStatus();
-  }, [isInitialized]);
+  }, []);
 
   // Initialize Google Sign-In on mount - only once
   useEffect(() => {
@@ -123,60 +132,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
         
         // Create a stable callback that doesn't recreate on render
-        const handleCredential = async (response: any) => {
-          if (!isMounted) return;
-          
-          try {
-            const { credential } = response;
-            if (!credential) {
-              console.error('No credential received from Google');
-              return;
-            }
-            
-            console.log('Google credential received, authenticating...');
-            const apiResponse = await fetch('/api/auth/google', {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-              },
-              body: JSON.stringify({ credential }),
-              credentials: 'include'
-            });
-            
-            if (!apiResponse.ok) {
-              const errorData = await apiResponse.json();
-              throw new Error(errorData.message || 'Backend authentication failed');
-            }
-            
-            const data = await apiResponse.json();
-            console.log('Authentication successful, user data:', data);
-            
-            if (isMounted) {
-              setIsAuthenticated(true);
-              setUser(data.user);
-              setLocation('/dashboard');
-            }
-          } catch (error) {
-            console.error('Authentication error:', error);
-            if (isMounted) {
-              toast({
-                variant: "destructive",
-                title: "Authentication failed",
-                description: error instanceof Error 
-                  ? error.message 
-                  : "Could not sign in with Google. Make sure your Google Cloud Console project has the correct authorized domains.",
-              });
-            }
-          }
-        };
-        
         window.google.accounts.id.initialize({
           client_id: clientId,
-          callback: handleCredential,
+          callback: () => {}, // Empty callback, we'll set the real one in handleGoogleSignIn
           auto_select: false
         });
         
         console.log('Google Sign-In initialized successfully');
+        
+        // Clear the interval if we got here
+        if (checkGoogleApiInterval) {
+          clearInterval(checkGoogleApiInterval);
+          checkGoogleApiInterval = null;
+        }
       } catch (error) {
         console.error('Failed to initialize Google Sign-In:', error);
       }
@@ -189,10 +157,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } else {
       checkGoogleApiInterval = setInterval(() => {
         if (window.google && window.google.accounts) {
-          if (checkGoogleApiInterval) clearInterval(checkGoogleApiInterval);
           initializeGoogleSignIn();
         }
-      }, 200); // Slightly longer interval to reduce CPU usage
+      }, 500); // Longer interval to reduce CPU usage
     }
     
     // Clean up function
@@ -202,8 +169,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         clearInterval(checkGoogleApiInterval);
       }
     };
-    // Removed the dependencies to ensure this only runs once on mount
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleGoogleSignIn = async () => {
@@ -268,6 +233,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               // Update local state
               setIsAuthenticated(true);
               setUser(data.user);
+              
+              // Also save to localStorage to avoid future API calls
+              localStorage.setItem('gmail_app_user', JSON.stringify(data.user));
               
               // Show success toast
               toast({
@@ -347,7 +315,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // Update state
       setIsAuthenticated(false);
       setUser(null);
-      setLocation('/');
+      
+      // Reset auth check flag so we can check again on next mount if needed
+      hasCheckedAuth = false;
       
       // Clear all queries
       queryClient.clear();
@@ -356,6 +326,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         title: "Signed out successfully",
         description: "You have been signed out of your account"
       });
+      
+      setLocation('/');
     } catch (error) {
       // Clear localStorage even if API fails
       localStorage.removeItem('gmail_app_user');
@@ -363,12 +335,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // Update state
       setIsAuthenticated(false);
       setUser(null);
-      setLocation('/');
+      
+      // Reset auth check flag
+      hasCheckedAuth = false;
       
       toast({
         title: "Signed out successfully",
         description: "You have been signed out of your account"
       });
+      
+      setLocation('/');
     }
   };
 
