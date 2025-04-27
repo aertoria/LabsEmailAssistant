@@ -46,7 +46,7 @@ export function setupGmail(app: Express, storage: IStorage) {
         accessToken: "demo-token",
         refreshToken: "demo-refresh-token",
         tokenExpiry: null,
-        password: null,
+        password: "",
         googleId: null,
         historyId: null
       };

@@ -29,7 +29,7 @@ export function EmailList() {
           ? `${queryKey[0]}?page=${page}&demo=true` 
           : `${queryKey[0]}?page=${page}`;
         
-        console.log("Fetching emails from:", url);
+        console.log("Fetching emails from:", url, isDemoMode ? "(DEMO MODE)" : "");
         
         const response = await fetch(url, {
           credentials: "include",

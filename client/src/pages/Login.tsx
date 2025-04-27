@@ -106,18 +106,29 @@ export default function Login() {
                 {/* Demo login option */}
                 <button 
                   onClick={() => {
-                    // Create a simulated user for demo purposes
-                    const demoUser = {
-                      id: 1,
-                      email: "demo.user@example.com",
-                      name: "Demo User"
-                    };
-                    
-                    // Store in localStorage for persistence
-                    localStorage.setItem('gmail_app_user', JSON.stringify(demoUser));
-                    
-                    // Manually set user in the auth context
-                    window.location.href = '/dashboard';
+                    try {
+                      // Create a simulated user for demo purposes
+                      const demoUser = {
+                        id: 1,
+                        email: "demo.user@example.com",
+                        name: "Demo User"
+                      };
+                      
+                      console.log("Setting up demo user...");
+                      
+                      // Store in localStorage for persistence
+                      localStorage.setItem('gmail_app_user', JSON.stringify(demoUser));
+                      
+                      // Redirect to dashboard
+                      setLocation("/dashboard");
+                    } catch (error) {
+                      console.error("Error setting up demo user:", error);
+                      toast({
+                        variant: "destructive",
+                        title: "Demo Login Failed",
+                        description: "There was an error logging in with the demo account. Please try again."
+                      });
+                    }
                   }}
                   className="w-full flex items-center justify-center bg-blue-500 text-white rounded-md py-2 px-4 font-medium hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition"
                 >
