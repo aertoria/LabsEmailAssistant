@@ -185,18 +185,35 @@ export function setupAuth(app: Express, storage: IStorage) {
         );
         
         console.log(`Successfully stored Google OAuth tokens for user ${user.id}`);
+        
+        // Verify tokens immediately by making a simple API call
+        try {
+          const testOAuth2Client = new google.auth.OAuth2();
+          testOAuth2Client.setCredentials(tokens);
+          
+          // Create Gmail client
+          const gmail = google.gmail({
+            version: 'v1',
+            auth: testOAuth2Client
+          });
+          
+          // Make a simple test call to verify tokens work
+          await gmail.users.getProfile({ userId: 'me' });
+          console.log(`Verified Gmail access for user ${user.id}`);
+        } catch (verifyError) {
+          console.error('Failed to verify Gmail access with tokens:', verifyError);
+          // Continue anyway, since we want to allow the user to proceed
+        }
       } catch (tokenError) {
         console.error("Error storing OAuth tokens:", tokenError);
-        // Still redirect but log the error
+        // Just log the error but continue - don't fail the whole callback
       }
 
-      // Redirect to dashboard
-      res.redirect("/dashboard");
+      // Redirect to frontend OAuth callback handler to complete client-side process
+      res.redirect("/auth/callback?success=true");
     } catch (error) {
       console.error("OAuth callback error:", error);
-      res.status(500).json({
-        message: "Failed to exchange authorization code",
-      });
+      res.redirect("/auth/callback?error=true");
     }
   });
 

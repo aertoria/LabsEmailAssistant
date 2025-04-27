@@ -86,7 +86,17 @@ export default function Login() {
                 {/* This div will be used for the manual Google Sign-In button if One Tap fails */}
                 <div id="google-signin-button-container" className="mt-4"></div>
                 
-                {/* No demo login option - Google auth only */}
+                {/* Important note about Gmail API permissions */}
+                <div className="mt-4 text-sm text-gray-700">
+                  <p className="font-medium text-blue-600">Important:</p>
+                  <p>You'll need to authorize access to your Gmail account.</p>
+                  <p>This app requires permission to:</p>
+                  <ul className="list-disc list-inside mt-1 ml-2 text-xs">
+                    <li>Read your Gmail messages</li>
+                    <li>Modify message labels (for starring/unstarring)</li>
+                    <li>Access your profile information</li>
+                  </ul>
+                </div>
               </div>
 
               {isLoading && (

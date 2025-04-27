@@ -105,6 +105,10 @@ export function setupGmail(app: Express, storage: IStorage) {
   // Get Gmail client with token refresh handling
   const getGmailClient = async (user: any) => {
     try {
+      if (!user.accessToken || !user.refreshToken) {
+        throw new Error("Auth token error: Missing access or refresh token");
+      }
+      
       const oauth2Client = createOAuth2Client();
       
       // Set credentials from stored tokens
@@ -114,8 +118,32 @@ export function setupGmail(app: Express, storage: IStorage) {
         expiry_date: user.expiryDate ? new Date(user.expiryDate).getTime() : undefined
       });
 
-      // Test if the client is valid by making a minimal API call
+      // Create Gmail client
       const gmail = google.gmail({ version: "v1", auth: oauth2Client });
+      
+      // Set up a token refresh handler
+      oauth2Client.on('tokens', async (tokens) => {
+        try {
+          console.log('Token refresh occurred, updating stored tokens');
+          // Only update if we have an access token
+          if (tokens.access_token) {
+            // Update user with refreshed tokens in a way that doesn't depend on req
+            // We'll use the storage instance that was passed to setupGmail
+            const storage = app.locals.storage;
+            if (storage && typeof storage.updateUserTokens === 'function') {
+              await storage.updateUserTokens(
+                user.id,
+                tokens.access_token,
+                tokens.refresh_token || user.refreshToken, // Keep existing refresh token if not provided
+                tokens.expiry_date ? new Date(tokens.expiry_date) : undefined
+              );
+              console.log(`Updated tokens for user ${user.id} after refresh`);
+            }
+          }
+        } catch (refreshError) {
+          console.error('Error saving refreshed tokens:', refreshError);
+        }
+      });
       
       return gmail;
     } catch (error: any) {
@@ -125,7 +153,8 @@ export function setupGmail(app: Express, storage: IStorage) {
       if (error.message && (
         error.message.includes('invalid_grant') || 
         error.message.includes('invalid_token') ||
-        error.message.includes('token expired')
+        error.message.includes('token expired') ||
+        error.message.includes('Missing access or refresh token')
       )) {
         throw new Error(`Auth token error: ${error.message}`);
       }
