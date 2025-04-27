@@ -30,7 +30,7 @@ export function EmailList() {
           ? `${queryKey[0]}?page=${page}&demo=true` 
           : `${queryKey[0]}?page=${page}`;
         
-        console.log("Fetching emails from:", url, isDemoMode ? "(DEMO MODE)" : "");
+        console.log("Fetching emails from:", url, isDemoMode ? "(DEMO MODE)" : "(REAL GMAIL DATA)");
         
         const response = await fetch(url, {
           credentials: "include",
@@ -47,7 +47,17 @@ export function EmailList() {
           throw new Error(`Error fetching emails: ${response.status}`);
         }
         
-        return await response.json();
+        const result = await response.json();
+        
+        // Log if we're using real data or mock data
+        if (result.apiError) {
+          console.warn("Using mock data due to API error:", result.apiError);
+        } else {
+          console.log("Successfully loaded", result.messages.length, "emails", 
+            isDemoMode ? "(demo mode)" : "(real Gmail data)");
+        }
+        
+        return result;
       } catch (err) {
         console.error("Error fetching emails:", err);
         // Return empty data instead of throwing to avoid error UI
