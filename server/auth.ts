@@ -9,14 +9,9 @@ const createOAuth2Client = () => {
   // Get origin for redirect URI
   let redirectUri = process.env.REDIRECT_URI;
   if (!redirectUri) {
-    // Determine the base URL from the request
-    // For Replit: We need to use the actual Replit workspace URL
-    const isReplit = process.env.REPL_ID && process.env.REPL_SLUG;
-    const baseUrl = isReplit 
-      ? process.env.APP_URL || `https://${process.env.REPL_SLUG}.${process.env.REPLIT_DOMAIN || 'repl.co'}`
-      : "http://localhost:5000";
-    
-    redirectUri = `${baseUrl}/api/auth/callback`;
+    // Must exactly match what's configured in Google Cloud Console
+    // The error indicates we need to use a specific redirect URI
+    redirectUri = "https://workspace.castives.repl.co/api/auth/callback";
   }
   
   console.log('Creating OAuth2 client with redirect URI:', redirectUri);
