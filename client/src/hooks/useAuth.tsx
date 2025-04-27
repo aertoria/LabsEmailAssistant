@@ -202,8 +202,51 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return new Promise<void>((resolve, reject) => {
       if (!window.google || !window.google.accounts) {
         console.error('Google authentication is not available');
-        reject(new Error('Auth not available'));
-        return;
+        
+        // Try to load script dynamically if not already loaded
+        const loadScript = () => {
+          return new Promise<void>((scriptResolve, scriptReject) => {
+            // Check if script already exists
+            if (document.getElementById('google-auth-retry-script')) {
+              scriptReject(new Error('Script already loading'));
+              return;
+            }
+            
+            const script = document.createElement('script');
+            script.src = 'https://accounts.google.com/gsi/client';
+            script.async = true;
+            script.defer = true;
+            script.id = 'google-auth-retry-script';
+            
+            script.onload = () => {
+              console.log('Google Identity Services script loaded successfully on retry');
+              scriptResolve();
+            };
+            
+            script.onerror = () => {
+              scriptReject(new Error('Failed to load Google Identity Services script on retry'));
+            };
+            
+            document.body.appendChild(script);
+          });
+        };
+        
+        // We need to convert this to a regular Promise chain since we're in a callback
+        loadScript()
+          .then(() => {
+            // Check if Google object is now available
+            if (window.google?.accounts) {
+              console.log('Successfully loaded Google auth on retry');
+              // Continue with sign-in process by calling the function again
+              handleGoogleSignIn().then(resolve).catch(reject);
+            } else {
+              throw new Error('Google auth still not available after script load');
+            }
+          })
+          .catch((loadError) => {
+            console.error('Failed to load Google auth on retry:', loadError);
+            reject(new Error('Authentication service is unavailable. Please refresh the page or try a different browser.'));
+          });
       }
 
       try {

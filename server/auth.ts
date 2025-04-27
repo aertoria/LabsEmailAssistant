@@ -9,8 +9,13 @@ const createOAuth2Client = () => {
   // Get origin for redirect URI
   let redirectUri = process.env.REDIRECT_URI;
   if (!redirectUri) {
-    // Use APP_URL if available, otherwise default to localhost for development
-    const baseUrl = process.env.APP_URL || "http://localhost:5000";
+    // Determine the base URL from the request
+    // For Replit: We need to use the actual Replit workspace URL
+    const isReplit = process.env.REPL_ID && process.env.REPL_SLUG;
+    const baseUrl = isReplit 
+      ? process.env.APP_URL || `https://${process.env.REPL_SLUG}.${process.env.REPLIT_DOMAIN || 'repl.co'}`
+      : "http://localhost:5000";
+    
     redirectUri = `${baseUrl}/api/auth/callback`;
   }
   
