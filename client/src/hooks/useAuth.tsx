@@ -268,7 +268,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
         
         // Initialize with new parameters including required Gmail scopes
-        window.google.accounts.id.initialize({
+        window.google?.accounts?.id.initialize({
           client_id: googleClientId,
           callback: async (response: any) => {
             if (!response || !response.credential) {
@@ -356,7 +356,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         });
         
         // First try to show the One Tap UI
-        window.google.accounts.id.prompt((notification: any) => {
+        window.google?.accounts?.id.prompt((notification: any) => {
           console.log('Google prompt notification received:', notification);
           
           // If One Tap isn't displayed or is skipped, create a sign-in button manually
@@ -368,8 +368,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               buttonContainer.innerHTML = '';
               
               // Render a Google Sign-In button
-              if (window.google && window.google.accounts) {
-                window.google.accounts.id.renderButton(buttonContainer, {
+              if (window.google?.accounts?.id) {
+                window.google?.accounts?.id.renderButton(buttonContainer, {
                   type: 'standard',
                   theme: 'outline',
                   size: 'large',

@@ -26,55 +26,47 @@ export default function Login() {
     }
   }, [isAuthenticated]);
 
-  // Create a more robust Google Sign-In function with retry
+  // Simplified Google Sign-In function
   const onGoogleSignInClick = async () => {
     try {
       setIsLoading(true);
       
-      // First, check if Google is available
+      console.log("Attempting Google sign-in...");
+      
+      // Load script if needed
       if (!window.google || !window.google.accounts) {
-        console.warn("Google auth not available yet, reloading script...");
+        toast({
+          title: "Loading Authentication",
+          description: "Initializing Google authentication, please wait...",
+        });
         
-        // Try to reload the Google auth script
+        // Create and add the script to the document
         const script = document.createElement('script');
         script.src = 'https://accounts.google.com/gsi/client';
         script.async = true;
         script.defer = true;
-        script.id = 'google-auth-script-retry';
+        script.id = 'google-auth-script';
         
-        // Create a promise that resolves when the script loads
-        const scriptLoadPromise = new Promise<void>((resolve, reject) => {
-          script.onload = () => {
-            console.log("Google Identity Services script reloaded successfully");
-            resolve();
-          };
-          script.onerror = () => {
-            reject(new Error("Failed to load Google Identity Services script"));
-          };
-        });
-        
-        // Add the script to the document
-        document.body.appendChild(script);
-        
-        // Wait for the script to load with a timeout
-        try {
-          await Promise.race([
-            scriptLoadPromise,
-            new Promise<void>((_, reject) => setTimeout(() => reject(new Error("Google auth script load timeout")), 5000))
-          ]);
+        await new Promise<void>((resolve, reject) => {
+          script.onload = () => resolve();
+          script.onerror = () => reject(new Error("Failed to load authentication service"));
+          document.body.appendChild(script);
           
-          // Check again after script loaded
-          if (!window.google || !window.google.accounts) {
-            throw new Error("Google authentication services not available. Please enable cookies and try again in a different browser.");
-          }
-        } catch (scriptError) {
-          throw new Error("Google authentication services failed to load. Please try again later or use a different browser.");
-        }
+          // Add timeout
+          setTimeout(() => {
+            if (!window.google?.accounts) {
+              reject(new Error("Authentication service load timed out"));
+            }
+          }, 5000);
+        });
       }
       
-      console.log("Attempting Google sign-in...");
-      await handleGoogleSignIn();
+      // Now try the sign-in
+      if (!window.google?.accounts) {
+        throw new Error("Google authentication could not be initialized. Please try refreshing the page.");
+      }
       
+      await handleGoogleSignIn();
     } catch (error) {
       console.error("Google sign-in error:", error);
       toast({
