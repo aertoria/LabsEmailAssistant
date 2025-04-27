@@ -174,46 +174,72 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const handleGoogleSignIn = async () => {
     return new Promise<void>((resolve, reject) => {
       if (!window.google || !window.google.accounts) {
-        reject(new Error('Google authentication is not available'));
+        console.error('Google authentication is not available');
+        reject(new Error('Google authentication services not available. Please make sure cookies and JavaScript are enabled in your browser.'));
         return;
       }
 
       try {
-        // Using a custom approach instead of the prompt method
-        // Create a temporary button and trigger the Google sign-in process
         const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
         
         console.log('Setting up Google Authentication with client ID:', 
           googleClientId ? 'Valid client ID exists' : 'Missing client ID');
           
         if (!googleClientId) {
-          reject(new Error('Missing Google Client ID'));
+          console.error('Missing Google Client ID environment variable');
+          reject(new Error('Missing Google Client ID configuration. Please contact the administrator.'));
           return;
         }
         
-        // Initialize with custom parameters
+        // Reset existing Google Sign-In and reinitialize
+        const buttonContainer = document.getElementById('google-signin-button-container');
+        if (buttonContainer) {
+          buttonContainer.innerHTML = '';
+        }
+        
+        // Initialize with new parameters
         window.google.accounts.id.initialize({
           client_id: googleClientId,
-          callback: async ({ credential }: any) => {
-            if (!credential) {
-              reject(new Error('No credential received from Google'));
+          callback: async (response: any) => {
+            if (!response || !response.credential) {
+              console.error('No credential received from Google');
+              reject(new Error('Google authentication failed. No credential received.'));
               return;
             }
             
             try {
-              console.log('Google credential received, authenticating with backend...');
-              const response = await apiRequest('POST', '/api/auth/google', { credential });
+              console.log('Google credential received, length:', response.credential.length);
+              const credential = response.credential;
               
-              if (!response.ok) {
-                const errorData = await response.json();
+              // Send the credential to the backend
+              const apiResponse = await fetch('/api/auth/google', {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ credential }),
+                credentials: 'include'
+              });
+              
+              if (!apiResponse.ok) {
+                const errorData = await apiResponse.json();
+                console.error('Backend authentication failed:', errorData);
                 throw new Error(errorData.message || 'Backend authentication failed');
               }
               
-              const data = await response.json();
+              const data = await apiResponse.json();
               console.log('Authentication successful, user data:', data);
               
+              // Update local state
               setIsAuthenticated(true);
               setUser(data.user);
+              
+              // Show success toast
+              toast({
+                title: "Sign in successful",
+                description: `Welcome, ${data.user.name || data.user.email}!`,
+              });
+              
               resolve();
               
               // Navigate after authentication
@@ -221,30 +247,35 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             } catch (error) {
               console.error('Authentication error with backend:', error);
               
-              // Show a more specific error message
+              // Show a specific error message
               toast({
                 variant: "destructive",
                 title: "Authentication failed",
-                description: "Your Replit domain may not be authorized in the Google Cloud Console. Please check that it's added to the authorized domains list."
+                description: error instanceof Error 
+                  ? error.message 
+                  : "There was an error processing your Google sign-in. Please check that your Replit domain is authorized in the Google Cloud Console."
               });
               
               reject(error);
             }
           },
-          prompt_parent_id: 'g_id_onload',
+          auto_select: false,
           cancel_on_tap_outside: true
         });
         
-        // Trigger the One Tap UI
+        // First try to show the One Tap UI
         window.google.accounts.id.prompt((notification: any) => {
-          console.log('Google prompt notification:', notification);
+          console.log('Google prompt notification received:', notification);
           
+          // If One Tap isn't displayed or is skipped, create a sign-in button manually
           if (notification.isNotDisplayed() || notification.isSkippedMoment()) {
             console.log('Google One Tap is not displayed or skipped. Showing manual sign-in button.');
-            // If One Tap doesn't work, create a sign-in button manually
-            const buttonContainer = document.getElementById('google-signin-button-container');
+            
             if (buttonContainer) {
+              // Clear any existing buttons
               buttonContainer.innerHTML = '';
+              
+              // Render a Google Sign-In button
               window.google.accounts.id.renderButton(buttonContainer, {
                 type: 'standard',
                 theme: 'outline',
@@ -255,6 +286,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 width: 250
               });
               console.log('Google Sign-In button created');
+            } else {
+              console.error('Google sign-in button container not found');
+              reject(new Error('Could not create Google sign-in button'));
             }
           }
         });

@@ -6,10 +6,20 @@ import { googleAuthUserSchema } from "@shared/schema";
 
 // Create OAuth client
 const createOAuth2Client = () => {
+  // Get origin for redirect URI
+  let redirectUri = process.env.REDIRECT_URI;
+  if (!redirectUri) {
+    // Use APP_URL if available, otherwise default to localhost for development
+    const baseUrl = process.env.APP_URL || "http://localhost:5000";
+    redirectUri = `${baseUrl}/api/auth/callback`;
+  }
+  
+  console.log('Creating OAuth2 client with redirect URI:', redirectUri);
+  
   return new google.auth.OAuth2(
     process.env.GOOGLE_CLIENT_ID,
     process.env.GOOGLE_CLIENT_SECRET,
-    process.env.REDIRECT_URI || `${process.env.APP_URL || ""}/api/auth/callback`
+    redirectUri
   );
 };
 

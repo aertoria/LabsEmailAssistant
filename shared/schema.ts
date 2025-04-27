@@ -35,6 +35,9 @@ export const emails = pgTable("emails", {
 export const insertUserSchema = createInsertSchema(users).pick({
   username: true,
   password: true,
+  googleId: true,
+  email: true,
+  name: true,
 });
 
 export const googleAuthUserSchema = z.object({
