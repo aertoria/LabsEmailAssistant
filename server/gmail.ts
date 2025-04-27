@@ -165,19 +165,78 @@ export function setupGmail(app: Express, storage: IStorage) {
           // Use our function to fetch limited emails from Gmail API
           const gmailData = await fetchLimitedEmails(req.user, page, pageSize);
           
-          // Transform messages to match our app's expected format
-          const formattedMessages = gmailData.messages.map((msg: any) => ({
-            id: msg.id,
-            threadId: msg.threadId,
-            // Other fields would be populated with detailed message data
-            // In a real implementation, we might need to fetch each message
-            from: "From Gmail API",
-            subject: "Gmail Message",
-            snippet: "Email content would be shown here...",
-            receivedAt: new Date().toISOString(),
-            isRead: true,
-            isStarred: false
-          }));
+          // Fetch details for each message to get real email content
+          const formattedMessages = await Promise.all(
+            gmailData.messages.map(async (msg: any) => {
+              try {
+                // Import the Google API library
+                const { google } = require('googleapis');
+                
+                // Create a new OAuth2 client
+                const oauth2Client = new google.auth.OAuth2();
+                
+                // Set the credentials
+                oauth2Client.setCredentials({
+                  access_token: req.user?.accessToken
+                });
+                
+                // Create Gmail API client
+                const gmail = google.gmail({ version: 'v1', auth: oauth2Client });
+                
+                // Fetch the full message details for each message ID
+                const messageDetail = await gmail.users.messages.get({
+                  userId: 'me',
+                  id: msg.id,
+                  format: 'full' // Get full message details
+                });
+                
+                const data = messageDetail.data;
+                const headers = data.payload?.headers || [];
+                
+                // Define header type
+                interface MessageHeader {
+                  name: string;
+                  value: string;
+                }
+                
+                // Extract email metadata from headers
+                const subject = headers.find((h: MessageHeader) => h.name === 'Subject')?.value || 'No Subject';
+                const from = headers.find((h: MessageHeader) => h.name === 'From')?.value || 'Unknown Sender';
+                const date = headers.find((h: MessageHeader) => h.name === 'Date')?.value;
+                
+                // Check if the message has been read
+                const isUnread = data.labelIds?.includes('UNREAD') || false;
+                const isStarred = data.labelIds?.includes('STARRED') || false;
+                
+                // Format the date
+                const receivedDate = date ? new Date(date).toISOString() : new Date().toISOString();
+                
+                return {
+                  id: msg.id,
+                  threadId: msg.threadId,
+                  from: from,
+                  subject: subject,
+                  snippet: data.snippet || 'No preview available',
+                  receivedAt: receivedDate,
+                  isRead: !isUnread,
+                  isStarred: isStarred
+                };
+              } catch (error) {
+                console.error(`Error fetching details for message ${msg.id}:`, error);
+                // Return a fallback if we can't get details
+                return {
+                  id: msg.id,
+                  threadId: msg.threadId,
+                  from: "Gmail Message",
+                  subject: "Could not retrieve details",
+                  snippet: "Error loading email content...",
+                  receivedAt: new Date().toISOString(),
+                  isRead: true,
+                  isStarred: false
+                };
+              }
+            })
+          );
           
           return res.status(200).json({
             messages: formattedMessages,

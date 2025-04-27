@@ -5,6 +5,25 @@ import { useToast } from '@/hooks/use-toast';
 import { useQueryClient } from '@tanstack/react-query';
 import { apiRequest } from '@/lib/queryClient';
 
+// Extract the sender name from various email formats
+function extractSenderName(from: string): string {
+  if (!from) return 'Unknown';
+  
+  // Format: "Name <email@example.com>"
+  if (from.includes('<')) {
+    return from.split('<')[0].trim();
+  }
+  
+  // Format: email@example.com (Name)
+  if (from.includes('(') && from.includes(')')) {
+    const match = from.match(/\((.*?)\)/);
+    if (match && match[1]) return match[1];
+  }
+  
+  // Just return the email address or whatever we have
+  return from.split('@')[0] || from;
+};
+
 interface EmailItemProps {
   email: {
     id: string;
@@ -49,6 +68,8 @@ export function EmailItem({ email, isSelected, onSelect }: EmailItemProps) {
       });
     }
   };
+
+
 
   const handleEmailClick = () => {
     // Open email view functionality would go here
@@ -102,7 +123,9 @@ export function EmailItem({ email, isSelected, onSelect }: EmailItemProps) {
         
         <div className="flex-1 min-w-0">
           <div className="flex items-baseline justify-between mb-1">
-            <div className="font-medium text-gray-900 truncate">{email.from}</div>
+            <div className="font-medium text-gray-900 truncate">
+              {extractSenderName(email.from)}
+            </div>
             <div className="text-xs text-gray-500 whitespace-nowrap ml-2">
               {formatDate(email)}
             </div>
