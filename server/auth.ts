@@ -272,6 +272,47 @@ export function setupAuth(app: Express, storage: IStorage) {
     }
   });
 
+  // Endpoint to get Gmail auth URL for re-authorization
+  app.get("/api/auth/gmail-auth-url", async (req: Request, res: Response) => {
+    if (!req.session.userId) {
+      return res.status(401).json({
+        message: "User not authenticated",
+      });
+    }
+    
+    try {
+      const user = await storage.getUser(req.session.userId);
+      
+      if (!user) {
+        return res.status(401).json({
+          message: "User not found",
+        });
+      }
+      
+      // Generate authorization URL
+      const oauth2Client = createOAuth2Client();
+      const authUrl = oauth2Client.generateAuthUrl({
+        access_type: 'offline',
+        scope: [
+          'https://www.googleapis.com/auth/gmail.readonly',
+          'https://www.googleapis.com/auth/gmail.modify',
+          'https://www.googleapis.com/auth/userinfo.profile',
+          'https://www.googleapis.com/auth/userinfo.email'
+        ],
+        // Force approval prompt to get a refresh token every time
+        prompt: 'consent' 
+      });
+      
+      console.log(`Generated Gmail auth URL for user ${user.id}`);
+      return res.status(200).json({ authUrl });
+    } catch (error) {
+      console.error("Error generating Gmail auth URL:", error);
+      return res.status(500).json({
+        message: "Failed to generate Gmail authorization URL",
+      });
+    }
+  });
+  
   // Logout
   app.post("/api/auth/logout", (req: Request, res: Response) => {
     req.session.destroy((err) => {

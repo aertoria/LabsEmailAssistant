@@ -41,17 +41,15 @@ export function EmailList() {
           // Auth error, will be handled by the auth provider
           console.warn("Unauthorized when fetching emails - auth issue");
           
-          // If we get a token_missing error, we need to redirect to login
-          const errorData = await response.json();
-          if (errorData.error === "token_missing" || errorData.error === "token_expired") {
-            console.log("Token missing or expired, redirecting to login");
-            // Clear local storage and redirect
-            localStorage.removeItem('gmail_app_user');
-            window.location.href = "/";
-            return { messages: [], totalCount: 0 };
+          // If we get a token_missing error, we need to return a special state
+          try {
+            const errorData = await response.json();
+            console.warn("Gmail token is missing or expired, showing empty state");
+            return { messages: [], totalCount: 0, needsReauth: true };
+          } catch (e) {
+            console.warn("Error parsing response JSON:", e);
+            return { messages: [], totalCount: 0, needsReauth: true };
           }
-          
-          return { messages: [], totalCount: 0 };
         }
         
         if (!response.ok) {
@@ -200,8 +198,39 @@ export function EmailList() {
         
         {!isLoading && !isError && emails.length === 0 && (
           <div className="flex flex-col items-center justify-center h-full text-gray-500">
-            <div className="text-5xl mb-4">📭</div>
-            <p>No emails found</p>
+            {emailsData?.needsReauth ? (
+              <>
+                <div className="text-5xl mb-4">🔑</div>
+                <p className="mb-2">Gmail authorization is required</p>
+                <p className="text-sm mb-4 max-w-md text-center">
+                  We need permission to access your Gmail account to display your emails.
+                </p>
+                <button
+                  onClick={() => {
+                    // Get the auth URL from the server
+                    fetch('/api/auth/gmail-auth-url', { credentials: 'include' })
+                      .then(res => res.json())
+                      .then(data => {
+                        if (data.authUrl) {
+                          // Open in the same window to avoid popup blockers
+                          window.location.href = data.authUrl;
+                        }
+                      })
+                      .catch(err => {
+                        console.error("Error getting Gmail auth URL:", err);
+                      });
+                  }}
+                  className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors"
+                >
+                  Authorize Gmail Access
+                </button>
+              </>
+            ) : (
+              <>
+                <div className="text-5xl mb-4">📭</div>
+                <p>No emails found</p>
+              </>
+            )}
           </div>
         )}
         
