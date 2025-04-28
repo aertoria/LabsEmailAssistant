@@ -39,8 +39,10 @@ if (typeof window !== 'undefined') {
   loadGoogleAuthScript();
 }
 
-// Global variable to prevent multiple auth checks
+// Global variable to prevent multiple auth checks and detect logout
 let hasCheckedAuth = false;
+// Add a logout flag to prevent auto-login after logout
+let hasUserLoggedOut = false;
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -62,6 +64,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       try {
         // Mark that we've checked auth to prevent repeated checks
         hasCheckedAuth = true;
+        
+        // If the user has explicitly logged out, don't automatically log them back in
+        if (hasUserLoggedOut) {
+          console.log('User has explicitly logged out, staying logged out');
+          setIsInitialized(true);
+          return;
+        }
         
         // Always check localStorage first for faster loading
         const savedUser = localStorage.getItem('gmail_app_user');
@@ -319,6 +328,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 return;
               }
               
+              // Reset the logout flag when a user explicitly signs in
+              hasUserLoggedOut = false;
+              console.log("Resetting hasUserLoggedOut flag after explicit sign-in");
+              
               // Update local state
               setIsAuthenticated(true);
               setUser(data.user);
@@ -395,6 +408,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signOut = async () => {
     try {
+      // Set the logout flag to prevent auto-login
+      hasUserLoggedOut = true;
+      console.log("Setting hasUserLoggedOut flag to prevent automatic login");
+      
       // Update state immediately
       setIsAuthenticated(false);
       setUser(null);
@@ -426,14 +443,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setIsAuthenticated(false);
       setUser(null);
       
-      // Reset auth check flag
+      // Reset auth check flag but keep logout flag
       hasCheckedAuth = false;
+      hasUserLoggedOut = true;
       
       // Navigate back to login page
       setLocation('/');
     } finally {
       // Always clear localStorage
       localStorage.removeItem('gmail_app_user');
+      
+      // Always ensure the logout flag is set
+      hasUserLoggedOut = true;
     }
   };
 
