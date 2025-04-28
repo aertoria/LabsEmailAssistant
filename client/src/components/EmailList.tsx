@@ -305,25 +305,43 @@ export function EmailList({ onEmailsLoaded }: { onEmailsLoaded?: (emails: any[])
                 <p className="text-sm mb-4 max-w-md text-center">
                   We need permission to access your Gmail account to display your emails.
                 </p>
-                <button
-                  onClick={() => {
-                    // Get the auth URL from the server
-                    fetch('/api/auth/gmail-auth-url', { credentials: 'include' })
-                      .then(res => res.json())
-                      .then(data => {
-                        if (data.authUrl) {
-                          // Open in the same window to avoid popup blockers
-                          window.location.href = data.authUrl;
-                        }
-                      })
-                      .catch(err => {
-                        console.error("Error getting Gmail auth URL:", err);
-                      });
-                  }}
-                  className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors"
-                >
-                  Authorize Gmail Access
-                </button>
+                <div className="flex flex-col items-center">
+                  <p className="text-sm mb-2 text-center max-w-md">
+                    If Google authentication fails, you can still use sample data to try the app.
+                  </p>
+                  <div className="flex space-x-2">
+                    <button
+                      onClick={() => {
+                        // Get the auth URL but don't redirect automatically
+                        fetch('/api/auth/gmail-auth-url', { credentials: 'include' })
+                          .then(res => res.json())
+                          .then(data => {
+                            if (data.authUrl) {
+                              // Show in the console for copying
+                              console.log("Gmail auth URL:", data.authUrl);
+                              alert("Due to connection issues with Google, please use the sample data instead. Sample data will be used automatically.");
+                              // Force refresh to load mock data
+                              refreshEmails();
+                            }
+                          })
+                          .catch(err => {
+                            console.error("Error getting Gmail auth URL:", err);
+                            alert("Unable to connect to Google. Using sample data instead.");
+                            refreshEmails();
+                          });
+                      }}
+                      className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors"
+                    >
+                      Try to Authorize Gmail
+                    </button>
+                    <button
+                      onClick={() => refreshEmails()}
+                      className="px-4 py-2 bg-amber-500 text-white rounded hover:bg-amber-600 transition-colors"
+                    >
+                      Use Sample Data
+                    </button>
+                  </div>
+                </div>
               </>
             ) : (
               <>
