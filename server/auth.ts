@@ -7,8 +7,8 @@ import { googleAuthUserSchema } from "@shared/schema";
 // Create OAuth client
 const createOAuth2Client = () => {
   // Hardcode the redirect URI to match exactly what's registered in Google Cloud Console
-  // This URI must be included in the list of Authorized Redirect URIs in your Google Cloud Console
-  const redirectUri = "http://localhost:3000/api/auth/callback";
+  // The error indicates we need to use a specific redirect URI
+  const redirectUri = "https://workspace-4.castives.repl.co/api/auth/callback";
   
   console.log('Creating OAuth2 client with redirect URI:', redirectUri);
   
