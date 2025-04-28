@@ -149,8 +149,8 @@ export default function Dashboard() {
       
       <main className="flex-1 flex overflow-hidden">
         <Sidebar />
-        <EmailList />
-        <AISidebar emails={[]} />
+        <EmailList onEmailsLoaded={setEmails} />
+        <AISidebar emails={emails} />
       </main>
       
       {syncStatus && syncStatus.isActive && (
