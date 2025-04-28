@@ -152,251 +152,171 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     checkAuthStatus();
   }, []);
 
-  // Initialize Google Sign-In on mount - only once
+  // Initialize Google auth
   useEffect(() => {
-    let isMounted = true;
-    let checkGoogleApiInterval: ReturnType<typeof setInterval> | null = null;
-    
-    const initializeGoogleSignIn = () => {
-      if (!window.google || !window.google.accounts || !isMounted) return;
-      
-      try {
-        const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
-        if (!clientId) {
-          console.error('Google Client ID is not configured');
-          return;
-        }
-        
-        // Create a stable callback that doesn't recreate on render
-        window.google.accounts.id.initialize({
-          client_id: clientId,
-          callback: () => {}, // Empty callback, we'll set the real one in handleGoogleSignIn
-          auto_select: false
+    if (window.google?.accounts) {
+      const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
+      if (!clientId) {
+        console.error('Google Client ID is not configured');
+        toast({
+          variant: "destructive",
+          title: "Configuration Error",
+          description: "Google authentication is not properly configured. Please contact support.",
         });
-        
-        console.log('Google Sign-In initialized successfully');
-        
-        // Clear the interval if we got here
-        if (checkGoogleApiInterval) {
-          clearInterval(checkGoogleApiInterval);
-          checkGoogleApiInterval = null;
-        }
-      } catch (error) {
-        console.error('Failed to initialize Google Sign-In:', error);
+        return;
       }
-    };
-    
-    // Check if Google API is loaded, if so initialize,
-    // otherwise wait for it to load
-    if (window.google && window.google.accounts) {
-      initializeGoogleSignIn();
-    } else {
-      checkGoogleApiInterval = setInterval(() => {
-        if (window.google && window.google.accounts) {
-          initializeGoogleSignIn();
-        }
-      }, 500); // Longer interval to reduce CPU usage
+
+      window.google.accounts.id.initialize({
+        client_id: clientId,
+        callback: async (response: any) => {
+          if (!response || !response.credential) {
+            console.error('Invalid Google auth response');
+            toast({
+              variant: "destructive",
+              title: "Authentication Error",
+              description: "Invalid response from Google authentication.",
+            });
+            return;
+          }
+
+          try {
+            const res = await fetch('/api/auth/google', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({ credential: response.credential }),
+              credentials: 'include',
+            });
+
+            if (!res.ok) {
+              throw new Error('Authentication failed');
+            }
+
+            const data = await res.json();
+
+            // Check if the user needs additional Gmail authorization
+            if (data.authUrl) {
+              console.log('User needs additional Gmail authorization, redirecting to:', data.authUrl);
+              toast({
+                title: "Gmail Authorization Required",
+                description: "You'll be redirected to authorize Gmail access...",
+              });
+              setTimeout(() => {
+                window.location.href = data.authUrl;
+              }, 1500);
+              return;
+            }
+
+            // Reset the logout flag when a user explicitly signs in
+            hasUserLoggedOut = false;
+            console.log("Resetting hasUserLoggedOut flag after explicit sign-in");
+
+            // Update local state
+            setIsAuthenticated(true);
+            setUser(data.user);
+
+            // Also save to localStorage to avoid future API calls
+            localStorage.setItem('gmail_app_user', JSON.stringify(data.user));
+
+            // Show success toast
+            toast({
+              title: "Sign in successful",
+              description: `Welcome, ${data.user.name || data.user.email}!`,
+            });
+
+            // Navigate after authentication
+            setLocation('/dashboard');
+          } catch (error) {
+            console.error('Authentication error:', error);
+            toast({
+              variant: "destructive",
+              title: "Authentication Failed",
+              description: "Could not complete authentication. Please try again.",
+            });
+          }
+        },
+      });
     }
-    
-    // Clean up function
-    return () => {
-      isMounted = false;
-      if (checkGoogleApiInterval) {
-        clearInterval(checkGoogleApiInterval);
-      }
-    };
-  }, []);
+  }, [toast, setLocation]);
 
   const handleGoogleSignIn = async () => {
     return new Promise<void>((resolve, reject) => {
       if (!window.google || !window.google.accounts) {
         console.error('Google authentication is not available');
-        
-        // Try to load script dynamically if not already loaded
-        const loadScript = () => {
-          return new Promise<void>((scriptResolve, scriptReject) => {
-            // Check if script already exists
-            if (document.getElementById('google-auth-retry-script')) {
-              scriptReject(new Error('Script already loading'));
-              return;
-            }
-            
-            const script = document.createElement('script');
-            script.src = 'https://accounts.google.com/gsi/client';
-            script.async = true;
-            script.defer = true;
-            script.id = 'google-auth-retry-script';
-            
-            script.onload = () => {
-              console.log('Google Identity Services script loaded successfully on retry');
-              scriptResolve();
-            };
-            
-            script.onerror = () => {
-              scriptReject(new Error('Failed to load Google Identity Services script on retry'));
-            };
-            
-            document.body.appendChild(script);
-          });
-        };
-        
-        // We need to convert this to a regular Promise chain since we're in a callback
-        loadScript()
-          .then(() => {
-            // Check if Google object is now available
-            if (window.google?.accounts) {
-              console.log('Successfully loaded Google auth on retry');
-              // Continue with sign-in process by calling the function again
-              handleGoogleSignIn().then(resolve).catch(reject);
-            } else {
-              throw new Error('Google auth still not available after script load');
-            }
-          })
-          .catch((loadError) => {
-            console.error('Failed to load Google auth on retry:', loadError);
-            reject(new Error('Authentication service is unavailable. Please refresh the page or try a different browser.'));
-          });
+        reject(new Error('Google authentication is not available. Please refresh the page.'));
+        return;
+      }
+
+      const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
+      console.log('Google Client ID:', clientId ? 'Configured' : 'Missing');
+      
+      if (!clientId) {
+        console.error('Missing Google Client ID');
+        reject(new Error('Missing Google Client ID configuration. Please contact the administrator.'));
+        return;
       }
 
       try {
-        const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
-        
-        console.log('Setting up Google Authentication with client ID:', 
-          googleClientId ? 'Valid client ID exists' : 'Missing client ID');
-          
-        if (!googleClientId) {
-          console.error('Missing Google Client ID environment variable');
-          reject(new Error('Missing Google Client ID configuration. Please contact the administrator.'));
-          return;
-        }
-        
-        // Reset existing Google Sign-In and reinitialize
-        const buttonContainer = document.getElementById('google-signin-button-container');
-        if (buttonContainer) {
-          buttonContainer.innerHTML = '';
-        }
-        
-        // Initialize with new parameters including required Gmail scopes
-        window.google?.accounts?.id.initialize({
-          client_id: googleClientId,
+        // Initialize Google Sign-In
+        window.google.accounts.id.initialize({
+          client_id: clientId,
           callback: async (response: any) => {
             if (!response || !response.credential) {
-              console.error('No credential received from Google');
-              reject(new Error('Google authentication failed. No credential received.'));
+              console.error('Invalid Google auth response');
+              reject(new Error('Invalid response from Google authentication.'));
               return;
             }
-            
+
             try {
-              console.log('Google credential received, length:', response.credential.length);
-              const credential = response.credential;
-              
-              // Send the credential to the backend
-              const apiResponse = await fetch('/api/auth/google', {
+              const res = await fetch('/api/auth/google', {
                 method: 'POST',
                 headers: {
                   'Content-Type': 'application/json',
                 },
-                body: JSON.stringify({ credential }),
-                credentials: 'include'
+                body: JSON.stringify({ credential: response.credential }),
+                credentials: 'include',
               });
-              
-              if (!apiResponse.ok) {
-                const errorData = await apiResponse.json();
-                console.error('Backend authentication failed:', errorData);
-                throw new Error(errorData.message || 'Backend authentication failed');
+
+              if (!res.ok) {
+                throw new Error('Authentication failed');
               }
-              
-              const data = await apiResponse.json();
-              console.log('Authentication successful, user data:', data);
-              
-              // Check if the user needs additional Gmail authorization
+
+              const data = await res.json();
+
               if (data.authUrl) {
                 console.log('User needs additional Gmail authorization, redirecting to:', data.authUrl);
-                
-                // Show a toast notification before redirecting
                 toast({
                   title: "Gmail Authorization Required",
                   description: "You'll be redirected to authorize Gmail access...",
                 });
-                
-                // Set a slight delay before redirecting to allow the toast to be seen
                 setTimeout(() => {
                   window.location.href = data.authUrl;
                 }, 1500);
-                
-                // Don't resolve or reject yet - we're redirecting to complete auth flow
                 return;
               }
-              
-              // Reset the logout flag when a user explicitly signs in
+
               hasUserLoggedOut = false;
-              console.log("Resetting hasUserLoggedOut flag after explicit sign-in");
-              
-              // Update local state
               setIsAuthenticated(true);
               setUser(data.user);
-              
-              // Also save to localStorage to avoid future API calls
               localStorage.setItem('gmail_app_user', JSON.stringify(data.user));
-              
-              // Show success toast
               toast({
                 title: "Sign in successful",
                 description: `Welcome, ${data.user.name || data.user.email}!`,
               });
-              
-              resolve();
-              
-              // Navigate after authentication using location setter rather than window.location.href
               setLocation('/dashboard');
+              resolve();
             } catch (error) {
-              console.error('Authentication error with backend:', error);
-              
-              // Show a specific error message
-              toast({
-                variant: "destructive",
-                title: "Authentication failed",
-                description: error instanceof Error 
-                  ? error.message 
-                  : "There was an error processing your Google sign-in. Please check that your Replit domain is authorized in the Google Cloud Console."
-              });
-              
+              console.error('Authentication error:', error);
               reject(error);
             }
           },
-          auto_select: false,
-          cancel_on_tap_outside: true
         });
-        
-        // First try to show the One Tap UI
-        window.google?.accounts?.id.prompt((notification: any) => {
-          console.log('Google prompt notification received:', notification);
-          
-          // If One Tap isn't displayed or is skipped, create a sign-in button manually
+
+        // Show the Google Sign-In prompt
+        window.google.accounts.id.prompt((notification: any) => {
           if (notification.isNotDisplayed() || notification.isSkippedMoment()) {
-            console.log('Google One Tap is not displayed or skipped. Showing manual sign-in button.');
-            
-            if (buttonContainer) {
-              // Clear any existing buttons
-              buttonContainer.innerHTML = '';
-              
-              // Render a Google Sign-In button
-              if (window.google?.accounts?.id) {
-                window.google?.accounts?.id.renderButton(buttonContainer, {
-                  type: 'standard',
-                  theme: 'outline',
-                  size: 'large',
-                  text: 'signin_with',
-                  shape: 'rectangular',
-                  logo_alignment: 'left',
-                  width: 250
-                });
-              }
-              console.log('Google Sign-In button created');
-            } else {
-              console.error('Google sign-in button container not found');
-              reject(new Error('Could not create Google sign-in button'));
-            }
+            console.log('Google One Tap is not displayed or skipped');
           }
         });
       } catch (error) {
