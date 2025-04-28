@@ -24,7 +24,7 @@ export function EmailList({ onEmailsLoaded }: { onEmailsLoaded?: (emails: any[])
     queryFn: async ({ queryKey }) => {
       try {
         const url = `${queryKey[0]}?page=${page}`;
-        console.log("Fetching emails from:", url, "(REAL GMAIL DATA)");
+        console.log(`[EmailList] Fetching emails from: ${url}`);
         
         // Show refetching state
         setIsRefetching(true);
@@ -36,12 +36,14 @@ export function EmailList({ onEmailsLoaded }: { onEmailsLoaded?: (emails: any[])
         // Hide refetching state
         setIsRefetching(false);
         
+        console.log(`[EmailList] Response status for ${url}: ${response.status}`);
+        
         if (response.status === 401 || response.status === 403) {
           // Auth error, will be handled by the auth provider
-          console.warn("Unauthorized when fetching emails - auth issue");
+          console.warn(`[EmailList] Received ${response.status} (Unauthorized/Forbidden) when fetching emails.`);
           
           // If Gmail access is restricted or tokens are missing, show mock data
-          console.log("Using mock email data since Gmail access is not available");
+          console.log("[EmailList] Using mock email data due to auth issue.");
           
           // Generate 10 realistic-looking mock emails
           const mockEmails = Array.from({ length: 10 }, (_, i) => ({
@@ -65,13 +67,15 @@ export function EmailList({ onEmailsLoaded }: { onEmailsLoaded?: (emails: any[])
         }
         
         if (!response.ok) {
+          // Log the non-OK status before throwing
+          console.error(`[EmailList] Received non-OK status ${response.status} from ${url}`);
           throw new Error(`Error fetching emails: ${response.status}`);
         }
         
         const result = await response.json();
         
         // Log that we're using real data
-        console.log("Successfully loaded", result.messages.length, "emails (real Gmail data)");
+        console.log(`[EmailList] Successfully loaded ${result.messages?.length || 0} emails (real Gmail data)`);
         
         // Add data source indicator to the returned result
         return {

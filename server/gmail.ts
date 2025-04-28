@@ -3,6 +3,7 @@ import { IStorage } from "./storage";
 import { google } from "googleapis";
 import { OAuth2Client } from "google-auth-library";
 import { User } from "@shared/schema";
+import { GmailService } from './gmail/sendEmail';
 
 // Extend the Express Request type to include our user property
 declare global {
@@ -70,6 +71,8 @@ declare global {
 export function setupGmail(app: Express, storage: IStorage) {
   // Store the storage reference globally for token refresh handling
   (global as any).appStorage = storage;
+  
+  const gmailService = new GmailService(storage);
   
   // Authentication middleware - requires real session authentication
   const authMiddleware = async (req: Request, res: Response, next: Function) => {
@@ -236,14 +239,22 @@ export function setupGmail(app: Express, storage: IStorage) {
       const page = parseInt(req.query.page as string) || 1;
       const pageSize = 50;
       
-      console.log(`[Gmail] Fetching page ${page} of emails for user ${req.user?.email}`);
+      // Ensure user is attached by middleware
+      if (!req.user) {
+        console.error("[Gmail Messages] Auth middleware passed but req.user is missing!");
+        return res.status(500).json({ message: "Internal authentication error" });
+      }
+      
+      console.log(`[Gmail Messages] Processing request for user ${req.user.email}, page ${page}`);
       
       try {
         // Use our function to fetch emails from Gmail API
         const gmailData = await fetchLimitedEmails(req.user, page, pageSize);
         
+        console.log(`[Gmail Messages] fetchLimitedEmails returned ${gmailData.messages?.length || 0} message IDs.`);
+        
         if (!gmailData.messages || gmailData.messages.length === 0) {
-          console.log('[Gmail] No messages found in response');
+          console.log('[Gmail Messages] No message IDs found in Gmail API response.');
           return res.status(200).json({
             messages: [],
             nextPageToken: null,
@@ -621,6 +632,44 @@ export function setupGmail(app: Express, storage: IStorage) {
       res.status(500).json({
         message: "Failed to fetch storage information from Gmail API",
         error: error.message || String(error)
+      });
+    }
+  });
+
+  // Send email endpoint
+  app.post("/api/gmail/send", authMiddleware, async (req: Request, res: Response) => {
+    try {
+      const { recipient, subject, messageText, attachmentPath } = req.body;
+      
+      if (!recipient || !subject || !messageText) {
+        return res.status(400).json({
+          message: "Missing required fields: recipient, subject, and messageText are required"
+        });
+      }
+
+      if (!req.user) {
+        return res.status(401).json({
+          message: "User not authenticated"
+        });
+      }
+
+      const result = await gmailService.sendEmail(req.user.id, {
+        recipient,
+        subject,
+        messageText,
+        attachmentPath
+      });
+
+      res.status(200).json({
+        message: "Email sent successfully",
+        messageId: result.messageId,
+        threadId: result.threadId
+      });
+    } catch (error: any) {
+      console.error("Error sending email:", error);
+      res.status(500).json({
+        message: "Failed to send email",
+        error: error.message || "Unknown error occurred"
       });
     }
   });

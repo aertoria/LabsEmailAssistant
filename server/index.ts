@@ -1,10 +1,22 @@
 import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
+import cors from 'cors';
+import dotenv from 'dotenv';
+
+dotenv.config();
 
 const app = express();
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
+
+// Add CORS middleware
+app.use(cors({
+  origin: ['http://localhost:5173', 'http://localhost:3000'],
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
+}));
 
 // Add CSP headers
 app.use((req, res, next) => {
@@ -13,7 +25,8 @@ app.use((req, res, next) => {
     res.setHeader(
       'Content-Security-Policy',
       "default-src 'self' 'unsafe-inline' 'unsafe-eval' ws: wss:; " +
-      "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://accounts.google.com https://apis.google.com; " +
+      "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://accounts.google.com https://apis.google.com https://replit.com; " +
+      "style-src 'self' 'unsafe-inline' https://accounts.google.com; " +
       "connect-src 'self' ws: wss: https://accounts.google.com https://oauth2.googleapis.com; " +
       "frame-src 'self' https://accounts.google.com; " +
       "img-src 'self' data: https://*.googleusercontent.com;"
@@ -24,7 +37,7 @@ app.use((req, res, next) => {
       'Content-Security-Policy',
       "default-src 'self'; " +
       "script-src 'self' 'unsafe-inline' https://accounts.google.com https://apis.google.com; " +
-      "style-src 'self' 'unsafe-inline'; " +
+      "style-src 'self' 'unsafe-inline' https://accounts.google.com; " +
       "connect-src 'self' https://accounts.google.com https://oauth2.googleapis.com; " +
       "frame-src 'self' https://accounts.google.com; " +
       "img-src 'self' data: https://*.googleusercontent.com;"

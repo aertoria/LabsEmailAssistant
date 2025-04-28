@@ -22,7 +22,7 @@ export function Header({ user, onSignOut }: HeaderProps) {
     <header className="bg-white border-b border-gray-300 py-2 px-4">
       <div className="flex items-center justify-between">
         <div className="flex items-center">
-          <h1 className="text-xl font-semibold text-gray-900 mr-6">MailSync</h1>
+          <h1 className="text-xl font-semibold text-gray-900 mr-6">Labster's MailAssist</h1>
           <div className="hidden md:block">
             <form onSubmit={handleSearch} className="relative">
               <Input

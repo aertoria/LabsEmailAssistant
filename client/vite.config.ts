@@ -24,10 +24,5 @@ export default defineConfig(({ mode }) => {
         },
       },
     },
-    define: {
-      'process.env': {
-        VITE_GOOGLE_CLIENT_ID: JSON.stringify(env.GOOGLE_CLIENT_ID),
-      },
-    },
   };
 }); 
