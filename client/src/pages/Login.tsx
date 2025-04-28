@@ -142,7 +142,7 @@ export default function Login() {
                    <code className="bg-gray-100 px-1">{window.location.origin}</code>
                 </p>
                 <p>3. Authorized redirect URIs should include:<br/>
-                   <code className="bg-gray-100 px-1">https://workspace.castives.repl.co/api/auth/callback</code>
+                   <code className="bg-gray-100 px-1">http://localhost:3000/api/auth/callback</code>
                 </p>
                 
                 <button 

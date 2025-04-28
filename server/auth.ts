@@ -6,17 +6,9 @@ import { googleAuthUserSchema } from "@shared/schema";
 
 // Create OAuth client
 const createOAuth2Client = () => {
-  // Get origin for redirect URI
-  let redirectUri = process.env.REDIRECT_URI;
-  if (!redirectUri) {
-    // Use APP_URL environment variable if available
-    if (process.env.APP_URL) {
-      redirectUri = `${process.env.APP_URL}/api/auth/callback`;
-    } else {
-      // Fallback to a configurable URI - change this to your actual deployment URL
-      redirectUri = `${process.env.HOST || 'http://localhost:3000'}/api/auth/callback`;
-    }
-  }
+  // Hardcode the redirect URI to match exactly what's registered in Google Cloud Console
+  // This URI must be included in the list of Authorized Redirect URIs in your Google Cloud Console
+  const redirectUri = "http://localhost:3000/api/auth/callback";
   
   console.log('Creating OAuth2 client with redirect URI:', redirectUri);
   
