@@ -4,7 +4,7 @@ import { EmailItem } from "./EmailItem";
 import { Check, ChevronLeft, ChevronRight, Menu, MoreVertical, RefreshCw } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 
-export function EmailList() {
+export function EmailList({ onEmailsLoaded }: { onEmailsLoaded?: (emails: any[]) => void }) {
   const [selectedEmails, setSelectedEmails] = useState<string[]>([]);
   const [page, setPage] = useState(1);
   const [showMobileSidebar, setShowMobileSidebar] = useState(false);
@@ -173,6 +173,13 @@ export function EmailList() {
 
   const emails = emailsData?.messages || [];
   const totalCount = emailsData?.totalCount || 0;
+  
+  // Call the onEmailsLoaded callback when emails change
+  useEffect(() => {
+    if (emails.length > 0 && onEmailsLoaded) {
+      onEmailsLoaded(emails);
+    }
+  }, [emails, onEmailsLoaded]);
 
   const toggleSelectAll = () => {
     if (selectedEmails.length === emails.length) {

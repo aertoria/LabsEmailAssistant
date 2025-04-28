@@ -3,6 +3,7 @@ import { useLocation } from "wouter";
 import { Header } from "@/components/Header";
 import { Sidebar } from "@/components/Sidebar";
 import { EmailList } from "@/components/EmailList";
+import { AISidebar } from "@/components/AISidebar";
 import { SyncStatus } from "@/components/SyncStatus";
 import { useQuery } from "@tanstack/react-query";
 
@@ -28,6 +29,7 @@ export default function Dashboard() {
   const [initialized, setInitialized] = useState(false);
   const [localUser, setLocalUser] = useState<any>(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [emails, setEmails] = useState<any[]>([]);
   
   // Check auth status once at initialization
   useEffect(() => {
@@ -148,6 +150,7 @@ export default function Dashboard() {
       <main className="flex-1 flex overflow-hidden">
         <Sidebar />
         <EmailList />
+        <AISidebar emails={[]} />
       </main>
       
       {syncStatus && syncStatus.isActive && (
