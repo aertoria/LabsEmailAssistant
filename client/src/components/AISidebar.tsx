@@ -242,6 +242,26 @@ export function AISidebar({ emails }: { emails: any[] }) {
                   </div>
                 </div>
                 
+                <div className="mt-4">
+                  <h4 className="text-xs font-medium text-gray-500 mb-2">IMPORTANT EMAILS</h4>
+                  <div className="space-y-3">
+                    <div className="bg-amber-50 p-2 rounded-md border border-amber-200">
+                      <p className="text-sm font-medium text-amber-800">Pull request #143: Fix authentication workflow</p>
+                      <p className="text-xs text-gray-600 mb-1">From: GitHub</p>
+                      <p className="text-xs text-gray-700">
+                        <span className="font-semibold">Next action:</span> Review and merge the pull request today to enable the authentication fixes for tomorrow's release.
+                      </p>
+                    </div>
+                    <div className="bg-amber-50 p-2 rounded-md border border-amber-200">
+                      <p className="text-sm font-medium text-amber-800">Quarterly report - Please review</p>
+                      <p className="text-xs text-gray-600 mb-1">From: Sarah Miller</p>
+                      <p className="text-xs text-gray-700">
+                        <span className="font-semibold">Next action:</span> Add your comments to the quarterly report by EOD to meet the finance team's deadline.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+                
                 <div>
                   <h4 className="text-xs font-medium text-gray-500 mb-1">SENTIMENT OVERVIEW</h4>
                   <div className="flex items-center space-x-2">
