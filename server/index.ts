@@ -12,7 +12,7 @@ app.use(express.urlencoded({ extended: false }));
 
 // Add CORS middleware
 app.use(cors({
-  origin: ['http://localhost:5173', 'http://localhost:3000'],
+  origin: ['http://localhost:5173', 'http://localhost:3000', 'http://localhost:5000'],
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization']
@@ -96,9 +96,9 @@ app.use((req, res, next) => {
     serveStatic(app);
   }
 
-  // Serve the app on port from env or default to 3000
+  // Serve the app on port from env or default to 5000
   // This serves both the API and the client.
-  const port = Number(process.env.PORT) || 3000;
+  const port = Number(process.env.PORT) || 5000;
   server.listen({
     port,
     host: "0.0.0.0",
