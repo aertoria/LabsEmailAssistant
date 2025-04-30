@@ -6,22 +6,7 @@ import { EmailList } from "@/components/EmailList";
 import { AISidebar } from "@/components/AISidebar";
 import { SyncStatus } from "@/components/SyncStatus";
 import { useQuery } from "@tanstack/react-query";
-
-// Import useAuth safely
-let AuthModule;
-try {
-  AuthModule = require("@/hooks/useAuth");
-} catch (error) {
-  console.warn("Auth module not available, using mock");
-  AuthModule = {
-    useAuth: () => ({
-      isAuthenticated: false,
-      user: null,
-      signOut: async () => { console.log("Signed out (mock)"); }
-    })
-  };
-}
-const { useAuth } = AuthModule;
+import { useAuth } from "@/hooks/useAuth";
 
 export default function Dashboard() {
   const { isAuthenticated: authProviderAuthenticated, user: authUser, signOut } = useAuth();

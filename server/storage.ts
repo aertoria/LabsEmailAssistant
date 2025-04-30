@@ -99,7 +99,7 @@ export class MemStorage implements IStorage {
     
     // Generate some common subjects
     const subjectPrefixes = [
-      "Weekly update: ",
+      "Ethan! Weekly update: ",
       "Your invoice for ",
       "Action required: ",
       "Invitation to ",

@@ -39,31 +39,9 @@ export function EmailList({ onEmailsLoaded }: { onEmailsLoaded?: (emails: any[])
         console.log(`[EmailList] Response status for ${url}: ${response.status}`);
         
         if (response.status === 401 || response.status === 403) {
-          // Auth error, will be handled by the auth provider
+          // Auth error, let auth flow handle it
           console.warn(`[EmailList] Received ${response.status} (Unauthorized/Forbidden) when fetching emails.`);
-          
-          // If Gmail access is restricted or tokens are missing, show mock data
-          console.log("[EmailList] Using mock email data due to auth issue.");
-          
-          // Generate 10 realistic-looking mock emails
-          const mockEmails = Array.from({ length: 10 }, (_, i) => ({
-            id: `mock-${i + 1}`,
-            threadId: `thread-${i + 1}`,
-            from: getMockSender(i),
-            subject: getMockSubject(i),
-            snippet: getMockSnippet(i),
-            receivedAt: getMockDate(i),
-            isStarred: Math.random() > 0.7,
-            isRead: Math.random() > 0.5,
-            labels: ["INBOX"]
-          }));
-          
-          return { 
-            messages: mockEmails, 
-            totalCount: 10, 
-            dataSource: "mock",
-            needsReauth: false // We're showing mock data, no need for reauth UI
-          };
+          throw new Error('Unauthorized');
         }
         
         if (!response.ok) {
@@ -74,40 +52,12 @@ export function EmailList({ onEmailsLoaded }: { onEmailsLoaded?: (emails: any[])
         
         const result = await response.json();
         
-        // Log that we're using real data
-        console.log(`[EmailList] Successfully loaded ${result.messages?.length || 0} emails (real Gmail data)`);
-        
-        // Add data source indicator to the returned result
-        return {
-          ...result,
-          dataSource: "gmail"
-        };
+        console.log(`[EmailList] Successfully loaded ${result.messages?.length || 0} emails`);
+        return result;
       } catch (err: any) {
         console.error("Error fetching emails:", err);
         setIsRefetching(false);
-        
-        // Return mock data instead of empty state for better user experience
-        const errorMessage = err instanceof Error ? err.message : String(err);
-        console.log("Using mock email data due to error:", errorMessage);
-        
-        // Generate 10 realistic-looking mock emails
-        const mockEmails = Array.from({ length: 10 }, (_, i) => ({
-          id: `mock-${i + 1}`,
-          threadId: `thread-${i + 1}`,
-          from: getMockSender(i),
-          subject: getMockSubject(i),
-          snippet: getMockSnippet(i),
-          receivedAt: getMockDate(i),
-          isStarred: Math.random() > 0.7,
-          isRead: Math.random() > 0.5,
-          labels: ["INBOX"]
-        }));
-        
-        return { 
-          messages: mockEmails, 
-          totalCount: 10, 
-          dataSource: "mock"
-        };
+        throw err;
       }
     }
   });
@@ -238,17 +188,6 @@ export function EmailList({ onEmailsLoaded }: { onEmailsLoaded?: (emails: any[])
             <button className="p-2 rounded-full hover:bg-gray-100" title="More actions">
               <MoreVertical size={18} />
             </button>
-            {/* Data Source Indicator */}
-            <span 
-              id="data-source-indicator" 
-              className={`ml-3 text-xs font-medium p-1 rounded ${
-                emailsData?.dataSource === "mock" 
-                  ? "bg-orange-100 text-orange-800" 
-                  : "bg-green-100 text-green-800"
-              }`}
-            >
-              {emailsData?.dataSource === "mock" ? "Sample Email Data" : "Real Gmail Data"}
-            </span>
           </div>
         </div>
         
