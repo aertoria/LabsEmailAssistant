@@ -1,67 +1,71 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Separator } from "@/components/ui/separator";
-import { ProgressBar } from "@/components/ui/progress";
+import { Progress } from "@/components/ui/progress";
+import { Inbox, Star, Clock, Send, FileText, Trash, Edit } from "lucide-react";
 
 export function Sidebar() {
   const [activeFolder, setActiveFolder] = useState("inbox");
 
   // Fetch labels
-  const { data: labels } = useQuery({
+  const { data: labels } = useQuery<any[]>({
     queryKey: ['/api/gmail/labels'],
     enabled: true
   });
 
   // Get storage info
-  const { data: storageInfo } = useQuery({
+  const { data: storageInfo } = useQuery<{
+    percentUsed: number;
+    usedFormatted: string;
+    totalFormatted: string;
+  }>({
     queryKey: ['/api/gmail/storage'],
     enabled: true
   });
 
   const folders = [
-    { id: "inbox", name: "Inbox", icon: "inbox", count: 0 },
-    { id: "starred", name: "Starred", icon: "star", count: 0 },
-    { id: "snoozed", name: "Snoozed", icon: "schedule", count: 0 },
-    { id: "sent", name: "Sent", icon: "send", count: 0 },
-    { id: "drafts", name: "Drafts", icon: "description", count: 0 },
-    { id: "trash", name: "Trash", icon: "delete", count: 0 },
+    { id: "inbox", name: "Inbox", Icon: Inbox, count: 0 },
+    { id: "starred", name: "Starred", Icon: Star, count: 0 },
+    { id: "snoozed", name: "Snoozed", Icon: Clock, count: 0 },
+    { id: "sent", name: "Sent", Icon: Send, count: 0 },
+    { id: "drafts", name: "Drafts", Icon: FileText, count: 0 },
+    { id: "trash", name: "Trash", Icon: Trash, count: 0 },
   ];
 
   return (
     <aside className="w-64 bg-white border-r border-gray-300 flex-shrink-0 hidden md:block overflow-y-auto">
       <div className="p-4">
         <button className="w-full bg-gray-100 hover:bg-gray-200 text-gray-800 font-medium py-3 px-4 rounded-lg flex items-center justify-center transition">
-          <span className="material-icons mr-2">edit</span>
+          <Edit className="mr-2 h-5 w-5" />
           <span>Compose</span>
         </button>
       </div>
       
       <nav className="mt-2">
         <ul>
-          {folders.map((folder) => (
-            <li key={folder.id}>
-              <a 
-                href="#"
-                onClick={(e) => {
-                  e.preventDefault();
-                  setActiveFolder(folder.id);
-                }}
-                className={`flex items-center px-4 py-2 text-gray-800 ${
-                  activeFolder === folder.id 
-                    ? "bg-blue-50 border-r-4 border-blue-500" 
-                    : "hover:bg-gray-100"
-                }`}
-              >
-                <span className={`material-icons mr-3 text-gray-600`}>{folder.icon}</span>
-                <span>{folder.name}</span>
-                {folder.count > 0 && (
-                  <span className="ml-auto bg-blue-500 text-white text-xs font-medium px-2 py-0.5 rounded-full">
-                    {folder.count}
-                  </span>
-                )}
-              </a>
-            </li>
-          ))}
+          {folders.map((folder) => {
+            const IconComponent = folder.Icon;
+            return (
+              <li key={folder.id}>
+                <a 
+                  href="#"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    setActiveFolder(folder.id);
+                  }}
+                  className={`flex items-center px-4 py-2 text-gray-800 ${activeFolder === folder.id ? "bg-blue-50 border-r-4 border-blue-500" : "hover:bg-gray-100"}`}
+                >
+                  <IconComponent className="mr-3 text-gray-600 h-5 w-5" />
+                  <span>{folder.name}</span>
+                  {folder.count > 0 && (
+                    <span className="ml-auto bg-blue-500 text-white text-xs font-medium px-2 py-0.5 rounded-full">
+                      {folder.count}
+                    </span>
+                  )}
+                </a>
+              </li>
+            );
+          })}
         </ul>
       </nav>
       
