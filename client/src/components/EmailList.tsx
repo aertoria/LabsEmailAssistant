@@ -118,12 +118,50 @@ export function EmailList({ onEmailsLoaded }: { onEmailsLoaded?: (emails: any[])
     return date.toISOString();
   }
 
-  // Force refetch on component mount
+  // Force refetch on component mount with retry logic for first-time logins
   useEffect(() => {
     // Initial fetch
     console.log("EmailList mounted, forcing email fetch");
-    refreshEmails();
-  }, []);
+    
+    // For first-time logins, we'll attempt multiple fetches with delays
+    // in case the session isn't fully established yet
+    let retryCount = 0;
+    const maxRetries = 3;
+    
+    const attemptFetch = () => {
+      console.log(`Attempting to fetch emails (attempt ${retryCount + 1} of ${maxRetries + 1})`);
+      
+      // Call refetch directly to avoid possible issues with our refreshEmails wrapper
+      setIsRefetching(true);
+      refetch()
+        .then((result) => {
+          setIsRefetching(false);
+          console.log('Email refresh successful');
+          
+          // Check if we have valid data
+          if (result?.data?.messages && result.data.messages.length > 0) {
+            console.log(`Found ${result.data.messages.length} messages`);
+          } else {
+            console.log('No messages found in result');
+          }
+        })
+        .catch((error: Error) => {
+          setIsRefetching(false);
+          console.warn(`Email refresh failed on attempt ${retryCount + 1}:`, error);
+          
+          // If we still have retries left and there's an auth error, try again
+          if (retryCount < maxRetries) {
+            retryCount++;
+            console.log(`Scheduling retry attempt ${retryCount + 1} in ${retryCount * 2}s`);
+            
+            // Exponential backoff
+            setTimeout(attemptFetch, retryCount * 2000);
+          }
+        });
+    };
+    
+    attemptFetch();
+  }, [refetch]); // Add refetch as dependency
 
   const emails = emailsData?.messages || [];
   const totalCount = emailsData?.totalCount || 0;
@@ -154,9 +192,31 @@ export function EmailList({ onEmailsLoaded }: { onEmailsLoaded?: (emails: any[])
   const refreshEmails = () => {
     console.log("Manual refresh triggered");
     setIsRefetching(true);
-    refetch().finally(() => {
-      setIsRefetching(false);
-    });
+    
+    // Return the promise for proper error handling by our retry mechanism
+    return refetch()
+      .then(result => {
+        setIsRefetching(false);
+        // If the result contains messages, it's a successful fetch
+        if (result?.data?.messages && result.data.messages.length > 0) {
+          console.log(`Refresh successful, loaded ${result.data.messages.length} messages`);
+          return result.data.messages;
+        } else if (result?.data?.needsReauth) {
+          console.log('Auth required, treating as error');
+          throw new Error('Auth required');
+        } else if (result?.data?.messages && result.data.messages.length === 0) {
+          console.log('No emails available');
+          return []; // Empty array is still a success
+        } else {
+          console.log('Ambiguous result, treating as error');
+          throw new Error('No emails received');
+        }
+      })
+      .catch(err => {
+        setIsRefetching(false);
+        console.error('Email refresh error:', err);
+        throw err; // Rethrow to let the caller handle it
+      });
   };
 
   return (

@@ -125,9 +125,31 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               return;
             }
 
+            // Save authentication state immediately
             setIsAuthenticated(true);
             setUser(data.user);
             localStorage.setItem('gmail_app_user', JSON.stringify(data.user));
+            
+            // Verify session is properly established on the server before redirecting
+            try {
+              // Make an authenticated request to verify session
+              const sessionCheck = await fetch('/api/auth/status', {
+                credentials: 'include'
+              });
+              
+              const sessionData = await sessionCheck.json();
+              
+              if (!sessionData.authenticated) {
+                console.error('Session not established after login');
+                throw new Error('Session error');
+              }
+              
+              console.log('Session successfully established');
+            } catch (sessionError) {
+              console.warn('Session verification issue:', sessionError);
+              // Continue anyway, as we've saved the user locally
+            }
+            
             toast.success(`Welcome, ${data.user.name || data.user.email}!`);
             setLocation('/dashboard');
             resolve();
