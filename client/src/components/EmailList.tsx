@@ -1,8 +1,10 @@
 import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { EmailItem } from "./EmailItem";
+import { GmailAuthPrompt } from "./GmailAuthPrompt";
 import { Check, ChevronLeft, ChevronRight, Menu, MoreVertical, RefreshCw } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
+import { toast } from "react-hot-toast";
 
 export function EmailList({ onEmailsLoaded }: { onEmailsLoaded?: (emails: any[]) => void }) {
   const [selectedEmails, setSelectedEmails] = useState<string[]>([]);
@@ -10,6 +12,16 @@ export function EmailList({ onEmailsLoaded }: { onEmailsLoaded?: (emails: any[])
   const [showMobileSidebar, setShowMobileSidebar] = useState(false);
   const [isRefetching, setIsRefetching] = useState(false);
 
+  // Track if we need Gmail authorization
+  const [needsGmailAuth, setNeedsGmailAuth] = useState(false);
+  
+  // Function to handle Gmail authorization
+  const handleGmailAuth = () => {
+    setNeedsGmailAuth(false); // Hide the prompt while authorizing
+    toast.success("Redirecting to Gmail authorization...");
+    // The actual redirect happens in the GmailAuthPrompt component
+  };
+  
   // Fetch emails - with error handling and no automatic refetching
   const { data: emailsData, isLoading, isError, error, refetch } = useQuery({
     queryKey: ['/api/gmail/messages', page],
@@ -39,8 +51,17 @@ export function EmailList({ onEmailsLoaded }: { onEmailsLoaded?: (emails: any[])
         console.log(`[EmailList] Response status for ${url}: ${response.status}`);
         
         if (response.status === 401 || response.status === 403) {
-          // Auth error, let auth flow handle it
+          // Check response for token error message
+          const errorData = await response.json();
           console.warn(`[EmailList] Received ${response.status} (Unauthorized/Forbidden) when fetching emails.`);
+          
+          // If it's specifically a Gmail token issue, show the Gmail auth prompt
+          if (errorData.error === "token_missing" || 
+              errorData.message?.includes("Gmail authorization")) {
+            console.log("Detected missing Gmail tokens, showing auth prompt");
+            setNeedsGmailAuth(true);
+          }
+          
           throw new Error('Unauthorized');
         }
         
@@ -280,13 +301,22 @@ export function EmailList({ onEmailsLoaded }: { onEmailsLoaded?: (emails: any[])
 
       {/* Email List */}
       <div className="overflow-y-auto flex-1">
-        {isLoading && (
+        {/* Gmail Auth Prompt */}
+        {needsGmailAuth && (
+          <div className="p-4 pt-10">
+            <GmailAuthPrompt onAuthorize={handleGmailAuth} isLoading={isRefetching} />
+          </div>
+        )}
+        
+        {/* Loading State */}
+        {isLoading && !needsGmailAuth && (
           <div className="flex justify-center py-10">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
           </div>
         )}
         
-        {!isLoading && isError && (
+        {/* Error State */}
+        {!isLoading && isError && !needsGmailAuth && (
           <div className="flex flex-col items-center justify-center h-full text-gray-500">
             <div className="text-5xl mb-4">⚠️</div>
             <p>Error loading emails</p>
