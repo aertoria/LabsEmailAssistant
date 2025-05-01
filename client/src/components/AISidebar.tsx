@@ -35,6 +35,7 @@ interface DailyDigest {
     neutral: number;
     negative: number;
   };
+  summary?: string; // OpenAI-generated summary of emails
 }
 
 interface SenderInsight {
@@ -83,14 +84,28 @@ export function AISidebar({ emails }: { emails: any[] }) {
     try {
       if (type === 'daily') {
         // Use the real API endpoint for daily digest
-        await dailyDigestQuery.refetch();
+        const result = await dailyDigestQuery.refetch();
         
-        if (dailyDigestQuery.isError) {
+        if (result.isError || !result.data) {
+          // Show a more descriptive error in the console for debugging
+          console.error('OpenAI API Error:', result.error);
           throw new Error('Failed to generate daily digest');
         }
         
         // Use the real AI-generated data
-        setGeneratedDailyDigest(dailyDigestQuery.data as DailyDigest);
+        const apiData = result.data as any;
+        
+        // Create a properly formatted DailyDigest object
+        const digest: DailyDigest = {
+          totalEmails: apiData.totalEmails || 0,
+          importantEmails: apiData.importantEmails || 0,
+          categorySummary: apiData.categorySummary || {},
+          topSenders: apiData.topSenders || [],
+          sentimentOverview: apiData.sentimentOverview || { positive: 0, neutral: 0, negative: 0 },
+          summary: apiData.summary || ''
+        };
+        
+        setGeneratedDailyDigest(digest);
       } else if (type === 'senders') {
         // Mock data for other tabs until they are implemented
         setTimeout(() => {
@@ -222,7 +237,7 @@ export function AISidebar({ emails }: { emails: any[] }) {
             {!generatedDailyDigest && renderGenerateButton('daily')}
           </div>
           
-          {isGenerating && activeTab === 'daily' ? (
+          {(isGenerating || dailyDigestQuery.isPending) && activeTab === 'daily' ? (
             <Card className="p-4">
               <Skeleton className="h-4 w-3/4 mb-2" />
               <Skeleton className="h-4 w-1/2 mb-2" />
@@ -263,22 +278,11 @@ export function AISidebar({ emails }: { emails: any[] }) {
                 </div>
                 
                 <div className="mt-4">
-                  <h4 className="text-xs font-medium text-gray-500 mb-2">IMPORTANT EMAILS</h4>
-                  <div className="space-y-3">
-                    <div className="bg-amber-50 p-2 rounded-md border border-amber-200">
-                      <p className="text-sm font-medium text-amber-800">Pull request #143: Fix authentication workflow</p>
-                      <p className="text-xs text-gray-600 mb-1">From: GitHub</p>
-                      <p className="text-xs text-gray-700">
-                        <span className="font-semibold">Next action:</span> Review and merge the pull request today to enable the authentication fixes for tomorrow's release.
-                      </p>
-                    </div>
-                    <div className="bg-amber-50 p-2 rounded-md border border-amber-200">
-                      <p className="text-sm font-medium text-amber-800">Quarterly report - Please review</p>
-                      <p className="text-xs text-gray-600 mb-1">From: Sarah Miller</p>
-                      <p className="text-xs text-gray-700">
-                        <span className="font-semibold">Next action:</span> Add your comments to the quarterly report by EOD to meet the finance team's deadline.
-                      </p>
-                    </div>
+                  <h4 className="text-xs font-medium text-gray-500 mb-2">AI SUMMARY</h4>
+                  <div className="bg-blue-50 p-3 rounded-md border border-blue-200">
+                    <p className="text-xs leading-relaxed text-gray-700 whitespace-pre-line">
+                      {typeof generatedDailyDigest.summary === 'string' ? generatedDailyDigest.summary : 'No summary available for today.'}
+                    </p>
                   </div>
                 </div>
                 
