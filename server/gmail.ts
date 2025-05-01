@@ -196,17 +196,30 @@ export function setupGmail(app: Express, storage: IStorage) {
   };
   
   // Fetch emails from Gmail API with limit of 100 emails or emails from the last day
-  const fetchLimitedEmails = async (user: any, page: number = 1, pageSize: number = 50) => {
+  const fetchLimitedEmails = async (user: any, page: number = 1, pageSize: number = 50, query?: string) => {
     try {
       const gmail = await getGmailClient(user);
       
-      console.log(`Fetching emails for user ${user.email}, page ${page}`);
+      console.log(`Fetching emails for user ${user.email}, page ${page}${query ? `, query: ${query}` : ''}`);
       
-      const response = await gmail.users.messages.list({
+      const listParams: any = {
         userId: 'me',
-        maxResults: 50, // Increased from 10 to 50
-        pageToken: page > 1 ? `page${page - 1}` : undefined
-      });
+        maxResults: 50 // Increased from 10 to 50
+      };
+      
+      // Only add pageToken for pagination when not searching
+      if (!query && page > 1) {
+        // Use Gmail's nextPageToken format instead of our custom format
+        // this likely caused the 'Invalid pageToken' error
+        listParams.pageToken = page > 1 ? `${page - 1}` : undefined;
+      }
+      
+      // Add search query if provided
+      if (query && query.trim()) {
+        listParams.q = query.trim();
+      }
+      
+      const response = await gmail.users.messages.list(listParams);
       
       console.log(`Found ${response.data.messages?.length || 0} messages`);
       
@@ -227,6 +240,7 @@ export function setupGmail(app: Express, storage: IStorage) {
     try {
       const page = parseInt(req.query.page as string) || 1;
       const pageSize = 50;
+      const searchQuery = req.query.q as string || '';
       
       // Ensure user is attached by middleware
       if (!req.user) {
@@ -234,11 +248,11 @@ export function setupGmail(app: Express, storage: IStorage) {
         return res.status(500).json({ message: "Internal authentication error" });
       }
       
-      console.log(`[Gmail Messages] Processing request for user ${req.user.email}, page ${page}`);
+      console.log(`[Gmail Messages] Processing request for user ${req.user.email}, page ${page}${searchQuery ? `, search: ${searchQuery}` : ''}`);
       
       try {
         // Use our function to fetch emails from Gmail API
-        const gmailData = await fetchLimitedEmails(req.user, page, pageSize);
+        const gmailData = await fetchLimitedEmails(req.user, page, pageSize, searchQuery);
         
         console.log(`[Gmail Messages] fetchLimitedEmails returned ${gmailData.messages?.length || 0} message IDs.`);
         
