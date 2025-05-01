@@ -39,7 +39,7 @@ interface EmailItemProps {
   onSelect: () => void;
 }
 
-export function EmailItem({ email, isSelected, onSelect }: EmailItemProps) {
+export function EmailItem({ email, isSelected, onSelect, onClick }: EmailItemProps & { onClick?: () => void }) {
   const [isStarred, setIsStarred] = useState(email.isStarred);
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -72,8 +72,13 @@ export function EmailItem({ email, isSelected, onSelect }: EmailItemProps) {
 
 
   const handleEmailClick = () => {
-    // Open email view functionality would go here
+    // Notify parent component to expand this email
     console.log('Open email:', email.id);
+    
+    // Call the onClick handler if provided (to expand the email)
+    if (onClick) {
+      onClick();
+    }
   };
 
   // Format the date - handle different date field names

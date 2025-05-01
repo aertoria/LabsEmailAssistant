@@ -1,64 +1,66 @@
-import { useState, useEffect } from 'react';
-import { useQuery } from '@tanstack/react-query';
-import { ChevronLeft, Star, ArrowLeft, Trash, MailPlus, Reply, Clock, MoreHorizontal } from 'lucide-react';
-import { Separator } from '@/components/ui/separator';
-import { Button } from '@/components/ui/button';
-import { Avatar } from '@/components/ui/avatar';
-import { Skeleton } from '@/components/ui/skeleton';
-import { Badge } from '@/components/ui/badge';
-import { apiRequest } from '@/lib/queryClient';
+import { useState, useEffect } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { apiRequest } from "@/lib/queryClient";
+import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Separator } from "@/components/ui/separator";
+import { Avatar } from "@/components/ui/avatar";
+import {
+  ArrowLeft,
+  Clock,
+  MoreHorizontal,
+  Reply,
+  Star,
+  Trash,
+  MailPlus
+} from "lucide-react";
 
-// Extract the sender name from various email formats
+// Helper functions
 function extractSenderName(from: string): string {
-  if (!from) return 'Unknown';
+  if (!from) return "Unknown";
   
-  // Format: "Name <email@example.com>"
-  if (from.includes('<')) {
-    return from.split('<')[0].trim();
+  // Try to extract name from format: "Name <email@example.com>"
+  const match = from.match(/^([^<]+)/);
+  if (match && match[1]) {
+    return match[1].trim();
   }
   
-  // Format: email@example.com (Name)
-  if (from.includes('(') && from.includes(')')) {
-    const match = from.match(/\((.*?)\)/);
-    if (match && match[1]) return match[1];
-  }
-  
-  // Just return the email address or whatever we have
-  return from.split('@')[0] || from;
-};
-
-// Extract email address from various formats
-function extractEmailAddress(from: string): string {
-  if (!from) return '';
-  
-  // Format: "Name <email@example.com>"
-  if (from.includes('<') && from.includes('>')) {
-    const match = from.match(/<([^>]+)>/);
-    if (match && match[1]) return match[1];
-  }
-  
-  // If there's no angle brackets, assume it's just an email
-  if (from.includes('@')) {
-    return from.trim();
-  }
-  
-  return '';
+  // If no name part, use the email as the name
+  return from.replace(/[<>]/g, "").trim();
 }
 
-// Format date for display
-function formatDetailDate(dateString: string): string {
-  const date = new Date(dateString);
+function extractEmailAddress(from: string): string {
+  if (!from) return "";
   
-  const options: Intl.DateTimeFormatOptions = {
-    weekday: 'short',
-    year: 'numeric',
-    month: 'short',
+  // Try to extract email from format: "Name <email@example.com>"
+  const match = from.match(/\<([^\>]+)\>/);
+  if (match && match[1]) {
+    return match[1].trim();
+  }
+  
+  // If no email in angle brackets, return full string
+  return from.trim();
+}
+
+function formatDetailDate(dateString: string): string {
+  if (!dateString) return "";
+  
+  const date = new Date(dateString);
+  const now = new Date();
+  const options: Intl.DateTimeFormatOptions = { 
+    weekday: 'long',
+    month: 'short', 
     day: 'numeric',
     hour: 'numeric',
     minute: '2-digit'
   };
   
-  return date.toLocaleString(undefined, options);
+  // If it's from a different year, include the year
+  if (date.getFullYear() !== now.getFullYear()) {
+    options.year = 'numeric';
+  }
+  
+  return date.toLocaleDateString('en-US', options);
 }
 
 interface EmailDetailProps {
@@ -70,7 +72,19 @@ export function EmailDetail({ emailId, onClose }: EmailDetailProps) {
   const [isStarred, setIsStarred] = useState(false);
   
   // Fetch the full email data
-  const { data: email, isLoading, isError } = useQuery({
+  const { data: email, isLoading, isError } = useQuery<{
+    id: string;
+    threadId: string;
+    from: string;
+    to: string;
+    subject: string;
+    date: string;
+    body: string;
+    snippet: string;
+    labelIds: string[];
+    isUnread: boolean;
+    isStarred: boolean;
+  }>({
     queryKey: [`/api/gmail/messages/${emailId}`],
     enabled: !!emailId,
     staleTime: 1000 * 60 * 5, // Consider data fresh for 5 minutes

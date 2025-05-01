@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { EmailItem } from "./EmailItem";
+import { EmailDetail } from "./EmailDetail";
 import { GmailAuthPrompt } from "./GmailAuthPrompt";
 import { Check, ChevronLeft, ChevronRight, Menu, MoreVertical, RefreshCw } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -11,6 +12,9 @@ export function EmailList({ onEmailsLoaded }: { onEmailsLoaded?: (emails: any[])
   const [page, setPage] = useState(1);
   const [showMobileSidebar, setShowMobileSidebar] = useState(false);
   const [isRefetching, setIsRefetching] = useState(false);
+  
+  // Track the currently viewed email (if expanded)
+  const [expandedEmailId, setExpandedEmailId] = useState<string | null>(null);
 
   // Track if we need Gmail authorization
   const [needsGmailAuth, setNeedsGmailAuth] = useState(false);
@@ -209,6 +213,17 @@ export function EmailList({ onEmailsLoaded }: { onEmailsLoaded?: (emails: any[])
       setSelectedEmails([...selectedEmails, emailId]);
     }
   };
+  
+  // Handle email clicks to expand/view the email
+  const handleEmailClick = (emailId: string) => {
+    console.log('Expanding email:', emailId);
+    setExpandedEmailId(emailId);
+  };
+  
+  // Close expanded email view
+  const closeEmailDetail = () => {
+    setExpandedEmailId(null);
+  };
 
   const refreshEmails = () => {
     console.log("Manual refresh triggered");
@@ -242,158 +257,169 @@ export function EmailList({ onEmailsLoaded }: { onEmailsLoaded?: (emails: any[])
 
   return (
     <div className="flex-1 flex flex-col bg-gray-50 overflow-hidden">
-      {/* Email List Header */}
-      <div className="bg-white border-b border-gray-300 p-2 flex items-center justify-between">
-        <div className="flex items-center">
-          <button 
-            className="p-2 rounded-full hover:bg-gray-100 md:hidden"
-            onClick={() => setShowMobileSidebar(!showMobileSidebar)}
-          >
-            <Menu size={20} />
-          </button>
-          <div className="flex items-center ml-2">
-            <label className="inline-flex items-center mr-4">
-              <Checkbox 
-                checked={selectedEmails.length > 0 && selectedEmails.length === emails.length}
-                onCheckedChange={toggleSelectAll}
-                className="h-4 w-4 text-blue-500"
-              />
-            </label>
-            <button 
-              className="p-2 rounded-full hover:bg-gray-100" 
-              title="Refresh"
-              onClick={refreshEmails}
-            >
-              <RefreshCw size={18} />
-            </button>
-            <button className="p-2 rounded-full hover:bg-gray-100" title="More actions">
-              <MoreVertical size={18} />
-            </button>
-          </div>
-        </div>
-        
-        <div className="flex items-center">
-          {totalCount > 0 && (
-            <div className="text-xs text-gray-500 hidden sm:block mr-4">
-              {Math.min((page - 1) * 50 + 1, totalCount)}-{Math.min(page * 50, totalCount)} of {totalCount}
+      {/* Show expanded email if one is selected */}
+      {expandedEmailId ? (
+        <EmailDetail 
+          emailId={expandedEmailId} 
+          onClose={closeEmailDetail} 
+        />
+      ) : (
+        <>
+          {/* Email List Header */}
+          <div className="bg-white border-b border-gray-300 p-2 flex items-center justify-between">
+            <div className="flex items-center">
+              <button 
+                className="p-2 rounded-full hover:bg-gray-100 md:hidden"
+                onClick={() => setShowMobileSidebar(!showMobileSidebar)}
+              >
+                <Menu size={20} />
+              </button>
+              <div className="flex items-center ml-2">
+                <label className="inline-flex items-center mr-4">
+                  <Checkbox 
+                    checked={selectedEmails.length > 0 && selectedEmails.length === emails.length}
+                    onCheckedChange={toggleSelectAll}
+                    className="h-4 w-4 text-blue-500"
+                  />
+                </label>
+                <button 
+                  className="p-2 rounded-full hover:bg-gray-100" 
+                  title="Refresh"
+                  onClick={refreshEmails}
+                >
+                  <RefreshCw size={18} />
+                </button>
+                <button className="p-2 rounded-full hover:bg-gray-100" title="More actions">
+                  <MoreVertical size={18} />
+                </button>
+              </div>
             </div>
-          )}
-          <div className="flex">
-            <button 
-              className="p-2 rounded-full hover:bg-gray-100" 
-              title="Newer"
-              onClick={() => setPage(Math.max(1, page - 1))}
-              disabled={page === 1}
-            >
-              <ChevronLeft size={18} />
-            </button>
-            <button 
-              className="p-2 rounded-full hover:bg-gray-100" 
-              title="Older"
-              onClick={() => setPage(page + 1)}
-              disabled={page * 50 >= totalCount}
-            >
-              <ChevronRight size={18} />
-            </button>
-          </div>
-        </div>
-      </div>
-
-      {/* Email List */}
-      <div className="overflow-y-auto flex-1">
-        {/* Gmail Auth Prompt */}
-        {needsGmailAuth && (
-          <div className="p-4 pt-10">
-            <GmailAuthPrompt onAuthorize={handleGmailAuth} isLoading={isRefetching} />
-          </div>
-        )}
-        
-        {/* Loading State */}
-        {isLoading && !needsGmailAuth && (
-          <div className="flex justify-center py-10">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
-          </div>
-        )}
-        
-        {/* Error State */}
-        {!isLoading && isError && !needsGmailAuth && (
-          <div className="flex flex-col items-center justify-center h-full text-gray-500">
-            <div className="text-5xl mb-4">⚠️</div>
-            <p>Error loading emails</p>
-            <button
-              onClick={() => refetch()}
-              className="mt-4 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition"
-            >
-              Try Again
-            </button>
-          </div>
-        )}
-        
-        {!isLoading && !isError && emails.length === 0 && (
-          <div className="flex flex-col items-center justify-center h-full text-gray-500">
-            {emailsData?.needsReauth ? (
-              <>
-                <div className="text-5xl mb-4">🔑</div>
-                <p className="mb-2">Gmail authorization is required</p>
-                <p className="text-sm mb-4 max-w-md text-center">
-                  We need permission to access your Gmail account to display your emails.
-                </p>
-                <div className="flex flex-col items-center">
-                  <p className="text-sm mb-2 text-center max-w-md">
-                    If Google authentication fails, you can still use sample data to try the app.
-                  </p>
-                  <div className="flex space-x-2">
-                    <button
-                      onClick={() => {
-                        // Get the auth URL but don't redirect automatically
-                        fetch('/api/auth/gmail-auth-url', { credentials: 'include' })
-                          .then(res => res.json())
-                          .then(data => {
-                            if (data.authUrl) {
-                              // Show in the console for copying
-                              console.log("Gmail auth URL:", data.authUrl);
-                              alert("Due to connection issues with Google, please use the sample data instead. Sample data will be used automatically.");
-                              // Force refresh to load mock data
-                              refreshEmails();
-                            }
-                          })
-                          .catch(err => {
-                            console.error("Error getting Gmail auth URL:", err);
-                            alert("Unable to connect to Google. Using sample data instead.");
-                            refreshEmails();
-                          });
-                      }}
-                      className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors"
-                    >
-                      Try to Authorize Gmail
-                    </button>
-                    <button
-                      onClick={() => refreshEmails()}
-                      className="px-4 py-2 bg-amber-500 text-white rounded hover:bg-amber-600 transition-colors"
-                    >
-                      Use Sample Data
-                    </button>
-                  </div>
+            
+            <div className="flex items-center">
+              {totalCount > 0 && (
+                <div className="text-xs text-gray-500 hidden sm:block mr-4">
+                  {Math.min((page - 1) * 50 + 1, totalCount)}-{Math.min(page * 50, totalCount)} of {totalCount}
                 </div>
-              </>
-            ) : (
-              <>
-                <div className="text-5xl mb-4">📭</div>
-                <p>No emails found</p>
-              </>
-            )}
+              )}
+              <div className="flex">
+                <button 
+                  className="p-2 rounded-full hover:bg-gray-100" 
+                  title="Newer"
+                  onClick={() => setPage(Math.max(1, page - 1))}
+                  disabled={page === 1}
+                >
+                  <ChevronLeft size={18} />
+                </button>
+                <button 
+                  className="p-2 rounded-full hover:bg-gray-100" 
+                  title="Older"
+                  onClick={() => setPage(page + 1)}
+                  disabled={page * 50 >= totalCount}
+                >
+                  <ChevronRight size={18} />
+                </button>
+              </div>
+            </div>
           </div>
-        )}
-        
-        {emails.map((email: any) => (
-          <EmailItem 
-            key={email.id} 
-            email={email} 
-            isSelected={selectedEmails.includes(email.id)}
-            onSelect={() => toggleEmailSelection(email.id)}
-          />
-        ))}
-      </div>
+
+          {/* Email List */}
+          <div className="overflow-y-auto flex-1">
+            {/* Gmail Auth Prompt */}
+            {needsGmailAuth && (
+              <div className="p-4 pt-10">
+                <GmailAuthPrompt onAuthorize={handleGmailAuth} isLoading={isRefetching} />
+              </div>
+            )}
+            
+            {/* Loading State */}
+            {isLoading && !needsGmailAuth && (
+              <div className="flex justify-center py-10">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+              </div>
+            )}
+            
+            {/* Error State */}
+            {!isLoading && isError && !needsGmailAuth && (
+              <div className="flex flex-col items-center justify-center h-full text-gray-500">
+                <div className="text-5xl mb-4">⚠️</div>
+                <p>Error loading emails</p>
+                <button
+                  onClick={() => refetch()}
+                  className="mt-4 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition"
+                >
+                  Try Again
+                </button>
+              </div>
+            )}
+            
+            {!isLoading && !isError && emails.length === 0 && (
+              <div className="flex flex-col items-center justify-center h-full text-gray-500">
+                {emailsData?.needsReauth ? (
+                  <>
+                    <div className="text-5xl mb-4">🔑</div>
+                    <p className="mb-2">Gmail authorization is required</p>
+                    <p className="text-sm mb-4 max-w-md text-center">
+                      We need permission to access your Gmail account to display your emails.
+                    </p>
+                    <div className="flex flex-col items-center">
+                      <p className="text-sm mb-2 text-center max-w-md">
+                        If Google authentication fails, you can still use sample data to try the app.
+                      </p>
+                      <div className="flex space-x-2">
+                        <button
+                          onClick={() => {
+                            // Get the auth URL but don't redirect automatically
+                            fetch('/api/auth/gmail-auth-url', { credentials: 'include' })
+                              .then(res => res.json())
+                              .then(data => {
+                                if (data.authUrl) {
+                                  // Show in the console for copying
+                                  console.log("Gmail auth URL:", data.authUrl);
+                                  alert("Due to connection issues with Google, please use the sample data instead. Sample data will be used automatically.");
+                                  // Force refresh to load mock data
+                                  refreshEmails();
+                                }
+                              })
+                              .catch(err => {
+                                console.error("Error getting Gmail auth URL:", err);
+                                alert("Unable to connect to Google. Using sample data instead.");
+                                refreshEmails();
+                              });
+                          }}
+                          className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors"
+                        >
+                          Try to Authorize Gmail
+                        </button>
+                        <button
+                          onClick={() => refreshEmails()}
+                          className="px-4 py-2 bg-amber-500 text-white rounded hover:bg-amber-600 transition-colors"
+                        >
+                          Use Sample Data
+                        </button>
+                      </div>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div className="text-5xl mb-4">📭</div>
+                    <p>No emails found</p>
+                  </>
+                )}
+              </div>
+            )}
+            
+            {emails.map((email: any) => (
+              <EmailItem 
+                key={email.id} 
+                email={email} 
+                isSelected={selectedEmails.includes(email.id)}
+                onSelect={() => toggleEmailSelection(email.id)}
+                onClick={() => handleEmailClick(email.id)}
+              />
+            ))}
+          </div>
+        </>
+      )}
     </div>
   );
 }
