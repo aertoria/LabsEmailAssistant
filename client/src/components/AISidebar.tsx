@@ -84,16 +84,18 @@ export function AISidebar({ emails }: { emails: any[] }) {
     try {
       if (type === 'daily') {
         // Use the real API endpoint for daily digest
+        console.log('[AISidebar] Requesting daily digest from OpenAI API...');
         const result = await dailyDigestQuery.refetch();
         
         if (result.isError || !result.data) {
           // Show a more descriptive error in the console for debugging
-          console.error('OpenAI API Error:', result.error);
+          console.error('[AISidebar] OpenAI API Error:', result.error);
           throw new Error('Failed to generate daily digest');
         }
         
         // Use the real AI-generated data
         const apiData = result.data as any;
+        console.log('[AISidebar] Received AI-generated daily digest:', apiData);
         
         // Create a properly formatted DailyDigest object
         const digest: DailyDigest = {
@@ -105,6 +107,7 @@ export function AISidebar({ emails }: { emails: any[] }) {
           summary: apiData.summary || ''
         };
         
+        console.log('[AISidebar] Formatted digest:', digest);
         setGeneratedDailyDigest(digest);
       } else if (type === 'senders') {
         // Mock data for other tabs until they are implemented

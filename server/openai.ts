@@ -39,6 +39,9 @@ async function summarizeRecentEmails(emails: any[]) {
 
     Emails:\n${emailData}`;
     
+    // Log the outbound prompt
+    console.log("[OpenAI] Outbound prompt:", prompt.substring(0, 200) + "...");
+    
     // Call OpenAI API
     const response = await openai.chat.completions.create({
       model: "gpt-4o", // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
@@ -47,8 +50,12 @@ async function summarizeRecentEmails(emails: any[]) {
       temperature: 0.7
     });
     
+    // Log the incoming response
+    const responseContent = response.choices[0]?.message?.content || "No content returned";
+    console.log("[OpenAI] Incoming response:", responseContent.substring(0, 200) + "...");
+    
     // Parse the response
-    const aiResponse = response.choices[0].message.content;
+    const aiResponse = response.choices[0]?.message?.content || "No AI-generated summary available.";
     
     // Create counts for top senders
     const senderCounts: Record<string, number> = {};
