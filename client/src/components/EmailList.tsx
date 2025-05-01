@@ -55,16 +55,12 @@ export function EmailList({ onEmailsLoaded }: { onEmailsLoaded?: (emails: any[])
         console.log(`[EmailList] Response status for ${url}: ${response.status}`);
         
         if (response.status === 401 || response.status === 403) {
-          // Check response for token error message
-          const errorData = await response.json();
+          // Handle authentication error
           console.warn(`[EmailList] Received ${response.status} (Unauthorized/Forbidden) when fetching emails.`);
           
-          // If it's specifically a Gmail token issue, show the Gmail auth prompt
-          if (errorData.error === "token_missing" || 
-              errorData.message?.includes("Gmail authorization")) {
-            console.log("Detected missing Gmail tokens, showing auth prompt");
-            setNeedsGmailAuth(true);
-          }
+          // Always show Gmail auth prompt for 401/403 errors
+          console.log("Authentication error detected, showing Gmail auth prompt");
+          setNeedsGmailAuth(true);
           
           throw new Error('Unauthorized');
         }

@@ -20,7 +20,7 @@ export default function Dashboard() {
   useEffect(() => {
     if (initialized) return;
     
-    const checkAuthentication = () => {
+    const checkAuthentication = async () => {
       // Check for authenticated user in local storage first
       const storedUser = localStorage.getItem('gmail_app_user');
       let hasLocalUser = false;
@@ -32,6 +32,23 @@ export default function Dashboard() {
           setIsAuthenticated(true);
           hasLocalUser = true;
           console.log("Using authenticated user from localStorage");
+          
+          // Even with local user, verify session is still valid on server
+          try {
+            const response = await fetch('/api/auth/status', {
+              credentials: 'include'
+            });
+            
+            if (!response.ok) {
+              console.warn("Server session invalid despite having local user");
+              hasLocalUser = false;
+              setIsAuthenticated(false);
+              // Don't clear localStorage yet, let the auth system handle it
+            }
+          } catch (serverError) {
+            console.error("Error checking server session:", serverError);
+            // Continue with local auth for now
+          }
         } catch (e) {
           console.error("Failed to parse stored user:", e);
         }
@@ -56,9 +73,11 @@ export default function Dashboard() {
     };
     
     // If authentication check succeeds, mark as initialized
-    if (checkAuthentication()) {
-      setInitialized(true);
-    }
+    checkAuthentication().then(result => {
+      if (result) {
+        setInitialized(true);
+      }
+    });
   }, [authProviderAuthenticated, authUser, initialized]);
   
   // Use whichever user we have
