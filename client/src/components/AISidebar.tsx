@@ -5,7 +5,9 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { BarChart, CheckCircle, Clock, FileText, LineChart, MessageCircle, RefreshCw, Send, ThumbsDown, ThumbsUp } from "lucide-react";
+import { BarChart, CheckCircle, Clock, FileText, LineChart, MessageCircle, RefreshCw, Send, ThumbsDown, ThumbsUp, AlertTriangle } from "lucide-react";
+import { getQueryFn } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
 import { Skeleton } from "@/components/ui/skeleton";
 
 interface EmailSummary {
@@ -62,89 +64,107 @@ export function AISidebar({ emails }: { emails: any[] }) {
   const [generatedDailyDigest, setGeneratedDailyDigest] = useState<DailyDigest | null>(null);
   const [generatedSenderInsights, setGeneratedSenderInsights] = useState<SenderInsight[]>([]);
   const [generatedDrafts, setGeneratedDrafts] = useState<EmailDraft[]>([]);
+  const { toast } = useToast();
   
-  // Function to generate mock AI results when the real OpenAI calls would be implemented
-  const generateMockAIAnalysis = (type: 'daily' | 'senders' | 'drafts') => {
+  // Use React Query to fetch the daily digest
+  const dailyDigestQuery = useQuery({
+    queryKey: ['/api/ai/daily-digest'],
+    queryFn: getQueryFn({
+      on401: "throw",
+    }),
+    enabled: false, // Don't run the query on component mount
+    retry: 1,
+  });
+  
+  // Function to generate AI analysis
+  const generateAIAnalysis = async (type: 'daily' | 'senders' | 'drafts') => {
     setIsGenerating(true);
     
-    // Simulate API delay
-    setTimeout(() => {
+    try {
       if (type === 'daily') {
-        setGeneratedDailyDigest({
-          totalEmails: emails.length,
-          importantEmails: Math.floor(emails.length * 0.3),
-          categorySummary: {
-            'Work': Math.floor(emails.length * 0.4),
-            'Personal': Math.floor(emails.length * 0.2),
-            'Updates': Math.floor(emails.length * 0.25),
-            'Promotions': Math.floor(emails.length * 0.15),
-          },
-          topSenders: [
-            { name: 'GitHub', count: 3 },
-            { name: 'Google Team', count: 2 },
-            { name: 'LinkedIn', count: 1 },
-          ],
-          sentimentOverview: {
-            positive: 60,
-            neutral: 30,
-            negative: 10,
-          }
-        });
+        // Use the real API endpoint for daily digest
+        await dailyDigestQuery.refetch();
+        
+        if (dailyDigestQuery.isError) {
+          throw new Error('Failed to generate daily digest');
+        }
+        
+        // Use the real AI-generated data
+        setGeneratedDailyDigest(dailyDigestQuery.data as DailyDigest);
       } else if (type === 'senders') {
-        setGeneratedSenderInsights([
-          {
-            sender: 'GitHub',
-            threadCount: 3,
-            recentSubjects: ['Pull request #143', 'Issue reported: Authentication bug', 'Security update required'],
-            sentimentTrend: 'stable',
-            responseRate: 85
-          },
-          {
-            sender: 'Google Team',
-            threadCount: 2,
-            recentSubjects: ['Your account security update', 'New recommendations for you'],
-            sentimentTrend: 'improving',
-            responseRate: 90
-          },
-          {
-            sender: 'LinkedIn',
-            threadCount: 1,
-            recentSubjects: ['5 job opportunities for you'],
-            sentimentTrend: 'stable',
-            responseRate: 70
-          }
-        ]);
+        // Mock data for other tabs until they are implemented
+        setTimeout(() => {
+          setGeneratedSenderInsights([
+            {
+              sender: 'GitHub',
+              threadCount: 3,
+              recentSubjects: ['Pull request #143', 'Issue reported: Authentication bug', 'Security update required'],
+              sentimentTrend: 'stable',
+              responseRate: 85
+            },
+            {
+              sender: 'Google Team',
+              threadCount: 2,
+              recentSubjects: ['Your account security update', 'New recommendations for you'],
+              sentimentTrend: 'improving',
+              responseRate: 90
+            },
+            {
+              sender: 'LinkedIn',
+              threadCount: 1,
+              recentSubjects: ['5 job opportunities for you'],
+              sentimentTrend: 'stable',
+              responseRate: 70
+            }
+          ]);
+          setIsGenerating(false);
+        }, 1500);
+        return;
       } else if (type === 'drafts') {
-        setGeneratedDrafts([
-          {
-            id: 'draft-1',
-            to: 'GitHub <notifications@github.com>',
-            subject: 'Re: Pull request #143',
-            draftContent: "Thanks for the review. I've addressed all the feedback points and pushed the changes. The authentication flow should now handle edge cases properly. Let me know if you need anything else before merging.",
-            replyToEmail: {
-              id: 'mock-2',
-              from: 'GitHub <notifications@github.com>',
-              subject: 'Pull request #143: Fix authentication workflow',
-              snippet: "Changes look good! I've approved the PR but had a couple of small suggestions for the error handling..."
+        // Mock data for drafts until implemented
+        setTimeout(() => {
+          setGeneratedDrafts([
+            {
+              id: 'draft-1',
+              to: 'GitHub <notifications@github.com>',
+              subject: 'Re: Pull request #143',
+              draftContent: "Thanks for the review. I've addressed all the feedback points and pushed the changes. The authentication flow should now handle edge cases properly. Let me know if you need anything else before merging.",
+              replyToEmail: {
+                id: 'mock-2',
+                from: 'GitHub <notifications@github.com>',
+                subject: 'Pull request #143: Fix authentication workflow',
+                snippet: "Changes look good! I've approved the PR but had a couple of small suggestions for the error handling..."
+              }
+            },
+            {
+              id: 'draft-2',
+              to: 'support@service.com',
+              subject: 'Re: Your support ticket #45982 has been updated',
+              draftContent: 'Thank you for the update on my support ticket. The solution you provided worked perfectly. I appreciate your quick response and thorough explanation of the issue. Consider this matter resolved.',
+              replyToEmail: {
+                id: 'mock-10',
+                from: 'Support <support@service.com>',
+                subject: 'Your support ticket #45982 has been updated',
+                snippet: "We've updated your support ticket regarding your recent issue. Our technician has provided a solution..."
+              }
             }
-          },
-          {
-            id: 'draft-2',
-            to: 'support@service.com',
-            subject: 'Re: Your support ticket #45982 has been updated',
-            draftContent: 'Thank you for the update on my support ticket. The solution you provided worked perfectly. I appreciate your quick response and thorough explanation of the issue. Consider this matter resolved.',
-            replyToEmail: {
-              id: 'mock-10',
-              from: 'Support <support@service.com>',
-              subject: 'Your support ticket #45982 has been updated',
-              snippet: "We've updated your support ticket regarding your recent issue. Our technician has provided a solution..."
-            }
-          }
-        ]);
+          ]);
+          setIsGenerating(false);
+        }, 1500);
+        return;
       }
       
+      // Set not generating when done if we didn't use setTimeout above
       setIsGenerating(false);
-    }, 1500);
+    } catch (error) {
+      console.error('Error generating AI analysis:', error);
+      toast({
+        title: "Error generating analysis",
+        description: "Could not generate AI analysis. Please try again later.",
+        variant: "destructive"
+      });
+      setIsGenerating(false);
+    }
   };
   
   // Function to display sentiment with icon
@@ -165,10 +185,10 @@ export function AISidebar({ emails }: { emails: any[] }) {
       variant="outline" 
       size="sm" 
       className="flex items-center" 
-      onClick={() => generateMockAIAnalysis(type)}
-      disabled={isGenerating}
+      onClick={() => generateAIAnalysis(type)}
+      disabled={isGenerating || dailyDigestQuery.isPending}
     >
-      {isGenerating ? (
+      {isGenerating || dailyDigestQuery.isPending ? (
         <>
           <RefreshCw size={16} className="mr-2 animate-spin" />
           Generating...
