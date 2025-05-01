@@ -38,6 +38,9 @@ export const insertUserSchema = createInsertSchema(users).pick({
   googleId: true,
   email: true,
   name: true,
+  accessToken: true,
+  refreshToken: true,
+  tokenExpiry: true,
 });
 
 export const googleAuthUserSchema = z.object({

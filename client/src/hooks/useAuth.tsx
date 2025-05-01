@@ -95,7 +95,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       const codeClient = (window as any).google.accounts.oauth2.initCodeClient({
         client_id: googleClientId,
-        scope: 'https://www.googleapis.com/auth/gmail.readonly email profile openid',
+        scope: 'https://www.googleapis.com/auth/gmail.readonly https://www.googleapis.com/auth/gmail.modify https://www.googleapis.com/auth/userinfo.profile https://www.googleapis.com/auth/userinfo.email',
         ux_mode: 'popup',
         callback: async (resp: { code: string; error?: string; error_description?: string }) => {
           const { code, error, error_description } = resp;

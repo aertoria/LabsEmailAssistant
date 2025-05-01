@@ -34,7 +34,12 @@ export function setupAuth(app: Express, storage: IStorage) {
     const url = oauth2Client.generateAuthUrl({
       access_type: 'offline',
       prompt: 'consent',
-      scope: ['https://www.googleapis.com/auth/gmail.readonly']
+      scope: [
+        'https://www.googleapis.com/auth/gmail.readonly',
+        'https://www.googleapis.com/auth/gmail.modify',
+        'https://www.googleapis.com/auth/userinfo.profile',
+        'https://www.googleapis.com/auth/userinfo.email'
+      ]
     });
     res.redirect(url);
   });
@@ -119,13 +124,29 @@ export function setupAuth(app: Express, storage: IStorage) {
           tokens.expiry_date ? new Date(tokens.expiry_date) : undefined
         );
       } else {
-        user = await storage.createUser({
+        // Create new user with tokens
+        const newUser = {
           username: data.email,
           password: "", // not used
           googleId: data.id,
           name: data.name || "",
           email: data.email,
-        });
+          accessToken: tokens.access_token,
+          refreshToken: tokens.refresh_token || '',
+          tokenExpiry: tokens.expiry_date ? new Date(tokens.expiry_date) : null
+        };
+        
+        user = await storage.createUser(newUser);
+        
+        if (!user.accessToken) {
+          // If tokens weren't saved during creation, update them separately
+          user = await storage.updateUserTokens(
+            user.id,
+            tokens.access_token!,
+            tokens.refresh_token || '',
+            tokens.expiry_date ? new Date(tokens.expiry_date) : undefined
+          );
+        }
       }
 
       // IMPORTANT: This needs to happen before saving tokens, to ensure proper session saving
