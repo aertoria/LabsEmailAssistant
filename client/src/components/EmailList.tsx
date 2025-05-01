@@ -3,8 +3,9 @@ import { useQuery } from "@tanstack/react-query";
 import { EmailItem } from "./EmailItem";
 import { EmailDetail } from "./EmailDetail";
 import { GmailAuthPrompt } from "./GmailAuthPrompt";
-import { Check, ChevronLeft, ChevronRight, Menu, MoreVertical, RefreshCw } from "lucide-react";
+import { Check, ChevronLeft, ChevronRight, Menu, MoreVertical, RefreshCw, Search, X } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Input } from "@/components/ui/input";
 import { toast } from "react-hot-toast";
 
 export function EmailList({ onEmailsLoaded }: { onEmailsLoaded?: (emails: any[]) => void }) {
@@ -12,6 +13,10 @@ export function EmailList({ onEmailsLoaded }: { onEmailsLoaded?: (emails: any[])
   const [page, setPage] = useState(1);
   const [showMobileSidebar, setShowMobileSidebar] = useState(false);
   const [isRefetching, setIsRefetching] = useState(false);
+  
+  // Add search state
+  const [searchQuery, setSearchQuery] = useState<string>('');
+  const [isSearching, setIsSearching] = useState(false);
   
   // Track the currently viewed email (if expanded)
   const [expandedEmailId, setExpandedEmailId] = useState<string | null>(null);
@@ -28,7 +33,7 @@ export function EmailList({ onEmailsLoaded }: { onEmailsLoaded?: (emails: any[])
   
   // Fetch emails - with error handling and no automatic refetching
   const { data: emailsData, isLoading, isError, error, refetch } = useQuery({
-    queryKey: ['/api/gmail/messages', page],
+    queryKey: ['/api/gmail/messages', page, searchQuery],
     enabled: true,
     retry: 3, // Increase retry attempts
     retryDelay: (attempt) => Math.min(1000 * 2 ** attempt, 30000), // Exponential backoff
@@ -39,18 +44,24 @@ export function EmailList({ onEmailsLoaded }: { onEmailsLoaded?: (emails: any[])
     // Silence 401 errors since we handle them at the app level
     queryFn: async ({ queryKey }) => {
       try {
-        const url = `${queryKey[0]}?page=${page}`;
+        // Build URL with search query if present
+        let url = `${queryKey[0]}?page=${page}`;
+        if (searchQuery) {
+          url += `&q=${encodeURIComponent(searchQuery)}`;
+        }
         console.log(`[EmailList] Fetching emails from: ${url}`);
         
         // Show refetching state
         setIsRefetching(true);
+        setIsSearching(!!searchQuery);
         
         const response = await fetch(url, {
           credentials: "include"
         });
         
-        // Hide refetching state
+        // Hide refetching and searching states
         setIsRefetching(false);
+        setIsSearching(false);
         
         console.log(`[EmailList] Response status for ${url}: ${response.status}`);
         
@@ -78,6 +89,7 @@ export function EmailList({ onEmailsLoaded }: { onEmailsLoaded?: (emails: any[])
       } catch (err: any) {
         console.error("Error fetching emails:", err);
         setIsRefetching(false);
+        setIsSearching(false);
         throw err;
       }
     }
@@ -229,6 +241,7 @@ export function EmailList({ onEmailsLoaded }: { onEmailsLoaded?: (emails: any[])
     return refetch()
       .then(result => {
         setIsRefetching(false);
+        setIsSearching(false);
         // If the result contains messages, it's a successful fetch
         if (result?.data?.messages && result.data.messages.length > 0) {
           console.log(`Refresh successful, loaded ${result.data.messages.length} messages`);
@@ -246,6 +259,7 @@ export function EmailList({ onEmailsLoaded }: { onEmailsLoaded?: (emails: any[])
       })
       .catch(err => {
         setIsRefetching(false);
+        setIsSearching(false);
         console.error('Email refresh error:', err);
         throw err; // Rethrow to let the caller handle it
       });
@@ -262,58 +276,91 @@ export function EmailList({ onEmailsLoaded }: { onEmailsLoaded?: (emails: any[])
       ) : (
         <>
           {/* Email List Header */}
-          <div className="bg-white border-b border-gray-300 p-2 flex items-center justify-between">
-            <div className="flex items-center">
-              <button 
-                className="p-2 rounded-full hover:bg-gray-100 md:hidden"
-                onClick={() => setShowMobileSidebar(!showMobileSidebar)}
-              >
-                <Menu size={20} />
-              </button>
-              <div className="flex items-center ml-2">
-                <label className="inline-flex items-center mr-4">
-                  <Checkbox 
-                    checked={selectedEmails.length > 0 && selectedEmails.length === emails.length}
-                    onCheckedChange={toggleSelectAll}
-                    className="h-4 w-4 text-blue-500"
-                  />
-                </label>
+          <div className="bg-white border-b border-gray-300 p-2 flex flex-col">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center">
                 <button 
-                  className="p-2 rounded-full hover:bg-gray-100" 
-                  title="Refresh"
-                  onClick={refreshEmails}
+                  className="p-2 rounded-full hover:bg-gray-100 md:hidden"
+                  onClick={() => setShowMobileSidebar(!showMobileSidebar)}
                 >
-                  <RefreshCw size={18} />
+                  <Menu size={20} />
                 </button>
-                <button className="p-2 rounded-full hover:bg-gray-100" title="More actions">
-                  <MoreVertical size={18} />
-                </button>
+                <div className="flex items-center ml-2">
+                  <label className="inline-flex items-center mr-4">
+                    <Checkbox 
+                      checked={selectedEmails.length > 0 && selectedEmails.length === emails.length}
+                      onCheckedChange={toggleSelectAll}
+                      className="h-4 w-4 text-blue-500"
+                    />
+                  </label>
+                  <button 
+                    className="p-2 rounded-full hover:bg-gray-100" 
+                    title="Refresh"
+                    onClick={refreshEmails}
+                  >
+                    <RefreshCw size={18} />
+                  </button>
+                  <button className="p-2 rounded-full hover:bg-gray-100" title="More actions">
+                    <MoreVertical size={18} />
+                  </button>
+                </div>
+              </div>
+              
+              <div className="flex items-center">
+                {totalCount > 0 && (
+                  <div className="text-xs text-gray-500 hidden sm:block mr-4">
+                    {Math.min((page - 1) * 50 + 1, totalCount)}-{Math.min(page * 50, totalCount)} of {totalCount}
+                  </div>
+                )}
+                <div className="flex">
+                  <button 
+                    className="p-2 rounded-full hover:bg-gray-100" 
+                    title="Newer"
+                    onClick={() => setPage(Math.max(1, page - 1))}
+                    disabled={page === 1}
+                  >
+                    <ChevronLeft size={18} />
+                  </button>
+                  <button 
+                    className="p-2 rounded-full hover:bg-gray-100" 
+                    title="Older"
+                    onClick={() => setPage(page + 1)}
+                    disabled={page * 50 >= totalCount}
+                  >
+                    <ChevronRight size={18} />
+                  </button>
+                </div>
               </div>
             </div>
             
-            <div className="flex items-center">
-              {totalCount > 0 && (
-                <div className="text-xs text-gray-500 hidden sm:block mr-4">
-                  {Math.min((page - 1) * 50 + 1, totalCount)}-{Math.min(page * 50, totalCount)} of {totalCount}
-                </div>
-              )}
-              <div className="flex">
-                <button 
-                  className="p-2 rounded-full hover:bg-gray-100" 
-                  title="Newer"
-                  onClick={() => setPage(Math.max(1, page - 1))}
-                  disabled={page === 1}
-                >
-                  <ChevronLeft size={18} />
-                </button>
-                <button 
-                  className="p-2 rounded-full hover:bg-gray-100" 
-                  title="Older"
-                  onClick={() => setPage(page + 1)}
-                  disabled={page * 50 >= totalCount}
-                >
-                  <ChevronRight size={18} />
-                </button>
+            {/* Search Bar */}
+            <div className="mt-2 px-2 flex items-center">
+              <div className="relative w-full flex items-center">
+                <Search className="absolute left-3 h-4 w-4 text-gray-400" />
+                <Input
+                  type="text"
+                  placeholder="Search emails"
+                  className="pl-9 pr-8 py-1 h-9 rounded-md text-sm w-full"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      console.log("Searching for:", searchQuery);
+                      refetch();
+                    }
+                  }}
+                />
+                {searchQuery && (
+                  <button 
+                    className="absolute right-2 rounded-full p-1 hover:bg-gray-100"
+                    onClick={() => {
+                      setSearchQuery('');
+                      refetch();
+                    }}
+                  >
+                    <X className="h-4 w-4 text-gray-400" />
+                  </button>
+                )}
               </div>
             </div>
           </div>
