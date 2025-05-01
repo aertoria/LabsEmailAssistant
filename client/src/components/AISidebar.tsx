@@ -4,7 +4,7 @@ import { Separator } from "@/components/ui/separator";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsContent } from "@/components/ui/tabs";
 import { BarChart, CheckCircle, Clock, FileText, LineChart, MessageCircle, RefreshCw, Send, ThumbsDown, ThumbsUp, AlertTriangle } from "lucide-react";
 import { getQueryFn } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -36,6 +36,8 @@ interface DailyDigest {
     negative: number;
   };
   summary?: string; // OpenAI-generated summary of emails
+  importantHighlights?: { title: string; sender: string; aiSummary: string }[];
+  topPriorityEmail?: { title: string; sender: string; snippet?: string; aiAnalysis: string } | null;
 }
 
 interface SenderInsight {
@@ -67,14 +69,16 @@ export function AISidebar({ emails }: { emails: any[] }) {
   const [generatedDrafts, setGeneratedDrafts] = useState<EmailDraft[]>([]);
   const { toast } = useToast();
   
-  // Use React Query to fetch the daily digest
+  // Use React Query with optimizations
   const dailyDigestQuery = useQuery({
     queryKey: ['/api/ai/daily-digest'],
     queryFn: getQueryFn({
       on401: "throw",
     }),
-    enabled: false, // Don't run the query on component mount
+    enabled: activeTab === 'daily', // Auto-fetch when Daily tab is selected
     retry: 1,
+    staleTime: 5 * 60 * 1000, // Cache for 5 minutes
+    refetchOnWindowFocus: false, // Don't refetch when window regains focus
   });
   
   // Function to generate AI analysis
@@ -100,11 +104,13 @@ export function AISidebar({ emails }: { emails: any[] }) {
         // Create a properly formatted DailyDigest object
         const digest: DailyDigest = {
           totalEmails: apiData.totalEmails || 0,
-          importantEmails: apiData.importantEmails || 0,
+          importantEmails: apiData.importantHighlights ? apiData.importantHighlights.length : 0,
           categorySummary: apiData.categorySummary || {},
           topSenders: apiData.topSenders || [],
           sentimentOverview: apiData.sentimentOverview || { positive: 0, neutral: 0, negative: 0 },
-          summary: apiData.summary || ''
+          summary: apiData.summary || '',
+          importantHighlights: apiData.importantHighlights || [],
+          topPriorityEmail: apiData.topPriorityEmail || null
         };
         
         console.log('[AISidebar] Formatted digest:', digest);
@@ -214,34 +220,28 @@ export function AISidebar({ emails }: { emails: any[] }) {
       ) : (
         <>
           <RefreshCw size={16} className="mr-2" />
-          Generate Analysis
+          {type === 'daily' ? 'AI Assist' : 'Generate Analysis'}
         </>
       )}
     </Button>
   );
   
   return (
-    <div className="w-80 bg-white border-l border-gray-200 flex-shrink-0 overflow-y-auto p-4">
-      <h2 className="text-lg font-semibold mb-4 flex items-center">
+    <div className="w-96 bg-white border-l border-gray-200 flex-shrink-0 overflow-y-auto p-4">
+      <h2 className="text-xl font-semibold mb-4 flex items-center">
         <MessageCircle size={20} className="mr-2 text-blue-500" />
         AI Email Assistant
       </h2>
       
-      <Tabs defaultValue="daily" className="mb-6" onValueChange={(value) => setActiveTab(value as any)}>
-        <TabsList className="grid grid-cols-3 mb-2">
-          <TabsTrigger value="daily">Daily Digest</TabsTrigger>
-          <TabsTrigger value="senders">Sender Insights</TabsTrigger>
-          <TabsTrigger value="drafts">Smart Drafts</TabsTrigger>
-        </TabsList>
+      <Tabs defaultValue="daily" className="flex-grow flex flex-col" onValueChange={(value) => setActiveTab(value as any)}>
         
-        <TabsContent value="daily" className="space-y-4">
+        <TabsContent value="daily" className="space-y-4 flex-grow">
           <div className="flex justify-between items-center mb-2">
-            <h3 className="text-sm font-medium">Today's Email Summary</h3>
-            {!generatedDailyDigest && renderGenerateButton('daily')}
           </div>
           
-          {(isGenerating || dailyDigestQuery.isPending) && activeTab === 'daily' ? (
+          {(isGenerating || dailyDigestQuery.isPending) ? (
             <Card className="p-4">
+              <h3 className="text-base font-medium mb-2">Today's Email Summary</h3>
               <Skeleton className="h-4 w-3/4 mb-2" />
               <Skeleton className="h-4 w-1/2 mb-2" />
               <Skeleton className="h-4 w-5/6 mb-2" />
@@ -250,6 +250,7 @@ export function AISidebar({ emails }: { emails: any[] }) {
             </Card>
           ) : generatedDailyDigest ? (
             <Card className="p-4 space-y-4">
+              <h3 className="text-base font-medium mb-2">Today's Email Summary</h3>
               <div>
                 <p className="text-sm text-gray-600 mb-2">
                   You've received <span className="font-semibold">{generatedDailyDigest.totalEmails} emails</span> today, 
@@ -281,11 +282,9 @@ export function AISidebar({ emails }: { emails: any[] }) {
                 </div>
                 
                 <div className="mt-4">
-                  <h4 className="text-xs font-medium text-gray-500 mb-2">AI SUMMARY</h4>
-                  <div className="bg-blue-50 p-3 rounded-md border border-blue-200">
-                    <p className="text-xs leading-relaxed text-gray-700 whitespace-pre-line">
-                      {typeof generatedDailyDigest.summary === 'string' ? generatedDailyDigest.summary : 'No summary available for today.'}
-                    </p>
+                  <h4 className="text-xs font-medium text-gray-500 mb-1">AI SUMMARY</h4>
+                  <div className="text-sm text-gray-700 whitespace-pre-wrap mt-1">
+                    {typeof generatedDailyDigest.summary === 'string' ? generatedDailyDigest.summary : 'No summary available for today.'}
                   </div>
                 </div>
                 
@@ -304,117 +303,31 @@ export function AISidebar({ emails }: { emails: any[] }) {
               </div>
             </Card>
           ) : (
-            <div className="text-center py-8 text-gray-500">
-              <BarChart size={40} className="mx-auto mb-2 text-gray-400" />
-              <p className="text-sm">Generate an AI summary of today's emails</p>
+            // Initial state: Show only a centered 'AI Assist' button
+            <div className="flex justify-center items-center py-8"> 
+              {renderGenerateButton('daily')}
             </div>
           )}
-        </TabsContent>
-        
-        <TabsContent value="senders" className="space-y-4">
-          <div className="flex justify-between items-center mb-2">
-            <h3 className="text-sm font-medium">Sender & Thread Insights</h3>
-            {!generatedSenderInsights.length && renderGenerateButton('senders')}
-          </div>
           
-          {isGenerating && activeTab === 'senders' ? (
-            <Card className="p-4">
-              <Skeleton className="h-4 w-3/4 mb-2" />
-              <Skeleton className="h-4 w-1/2 mb-2" />
-              <Skeleton className="h-4 w-5/6 mb-4" />
-              <Skeleton className="h-4 w-3/4 mb-2" />
-              <Skeleton className="h-4 w-1/2 mb-2" />
-              <Skeleton className="h-4 w-5/6 mb-4" />
+          {generatedDailyDigest && (
+            <Card className="p-4 mb-4">
+              <h4 className="text-sm font-medium mb-2">Important Email Highlights</h4>
+              {generatedDailyDigest.topPriorityEmail ? (
+                <div>
+                  <p className="text-sm text-gray-800 font-medium truncate">
+                    {generatedDailyDigest.topPriorityEmail.title}
+                  </p>
+                  <p className="text-xs text-gray-500 mb-2 truncate">
+                    {generatedDailyDigest.topPriorityEmail.sender}
+                  </p>
+                  <div className="text-sm text-gray-700 whitespace-pre-wrap">
+                    {generatedDailyDigest.topPriorityEmail.aiAnalysis}
+                  </div>
+                </div>
+              ) : (
+                <p className="text-sm text-gray-600">No high-priority email identified.</p>
+              )}
             </Card>
-          ) : generatedSenderInsights.length > 0 ? (
-            <div className="space-y-3">
-              {generatedSenderInsights.map((insight) => (
-                <Card key={insight.sender} className="p-3">
-                  <div className="mb-2 flex justify-between items-start">
-                    <h4 className="font-medium">{insight.sender}</h4>
-                    <Badge variant="outline">{insight.threadCount} threads</Badge>
-                  </div>
-                  
-                  <div className="mb-2 text-sm">
-                    <p className="text-xs text-gray-500 mb-1">RECENT SUBJECTS</p>
-                    <ul className="list-disc list-inside text-gray-600 text-xs">
-                      {insight.recentSubjects.map((subject, i) => (
-                        <li key={i}>{subject}</li>
-                      ))}
-                    </ul>
-                  </div>
-                  
-                  <div className="flex justify-between text-xs">
-                    <div>
-                      <span className="text-gray-500">Trend: </span>
-                      {renderSentiment(insight.sentimentTrend)}
-                    </div>
-                    <div>
-                      <span className="text-gray-500">Response Rate: </span>
-                      <span className="font-medium">{insight.responseRate}%</span>
-                    </div>
-                  </div>
-                </Card>
-              ))}
-            </div>
-          ) : (
-            <div className="text-center py-8 text-gray-500">
-              <LineChart size={40} className="mx-auto mb-2 text-gray-400" />
-              <p className="text-sm">Generate insights about senders and conversations</p>
-            </div>
-          )}
-        </TabsContent>
-        
-        <TabsContent value="drafts" className="space-y-4">
-          <div className="flex justify-between items-center mb-2">
-            <h3 className="text-sm font-medium">AI-Generated Reply Drafts</h3>
-            {!generatedDrafts.length && renderGenerateButton('drafts')}
-          </div>
-          
-          {isGenerating && activeTab === 'drafts' ? (
-            <Card className="p-4">
-              <Skeleton className="h-4 w-3/4 mb-2" />
-              <Skeleton className="h-4 w-5/6 mb-2" />
-              <Skeleton className="h-4 w-2/3 mb-2" />
-              <Skeleton className="h-16 w-full mt-2 mb-2" />
-              <Skeleton className="h-8 w-1/3 mt-2" />
-            </Card>
-          ) : generatedDrafts.length > 0 ? (
-            <div className="space-y-3">
-              {generatedDrafts.map((draft) => (
-                <Card key={draft.id} className="p-3">
-                  {draft.replyToEmail && (
-                    <div className="mb-3 pb-2 border-b border-gray-100">
-                      <p className="text-xs text-gray-500">REPLYING TO</p>
-                      <p className="text-sm font-medium truncate">{draft.replyToEmail.subject}</p>
-                      <p className="text-xs text-gray-600 truncate">{draft.replyToEmail.from}</p>
-                    </div>
-                  )}
-                  
-                  <div className="mb-3">
-                    <p className="text-sm font-medium">{draft.subject}</p>
-                    <p className="text-xs text-gray-500 mb-2">To: {draft.to}</p>
-                    <p className="text-sm text-gray-700 whitespace-pre-line">{draft.draftContent}</p>
-                  </div>
-                  
-                  <div className="flex space-x-2">
-                    <Button size="sm" className="flex items-center" variant="default">
-                      <Send size={14} className="mr-1" />
-                      Send
-                    </Button>
-                    <Button size="sm" className="flex items-center" variant="outline">
-                      <FileText size={14} className="mr-1" />
-                      Edit
-                    </Button>
-                  </div>
-                </Card>
-              ))}
-            </div>
-          ) : (
-            <div className="text-center py-8 text-gray-500">
-              <FileText size={40} className="mx-auto mb-2 text-gray-400" />
-              <p className="text-sm">Generate reply drafts for important emails</p>
-            </div>
           )}
         </TabsContent>
       </Tabs>
