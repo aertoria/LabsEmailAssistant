@@ -4,6 +4,7 @@ import { storage } from "./storage";
 import session from "express-session";
 import { setupAuth } from "./auth";
 import { setupGmail } from "./gmail";
+import { setupOpenAI } from "./openai";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Configure session middleware
@@ -26,6 +27,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Setup Gmail API routes
   setupGmail(app, storage);
+
+  // Setup OpenAI API routes
+  setupOpenAI(app, storage);
 
   const httpServer = createServer(app);
 
