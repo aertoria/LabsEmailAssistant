@@ -79,57 +79,46 @@ export function setupGmail(app: Express, storage: IStorage) {
     console.log(`[AUTH] Checking authentication for request to ${req.path}`);
     console.log(`[AUTH] Session data:`, req.session ? { userId: req.session.userId } : 'No session');
     
-    // Check for real authenticated session with a user
-    if (req.session.userId) {
-      try {
-        const user = await storage.getUser(req.session.userId);
-        
-        if (user) {
-          console.log(`[AUTH] Authenticated user: ${user.email}, has tokens: ${!!user.accessToken && !!user.refreshToken}`);
-          
-          // Validate if we have tokens
-          if (!user.accessToken || !user.refreshToken) {
-            console.log(`[AUTH] User ${user.email} is missing required tokens`);
-            return res.status(401).json({
-              message: "Missing Gmail authorization tokens. Please sign in again.",
-              error: "token_missing"
-            });
-          }
-          
-          req.user = user;
-          return next();
-        } else {
-          console.log(`[AUTH] User not found for ID: ${req.session.userId}`);
-        }
-      } catch (error) {
-        console.error("[AUTH] Error retrieving user:", error);
-      }
-    } else {
-      console.log('[AUTH] No userId in session');
-    }
-    
-    // Regular session-based authentication
+    // First check: userId in session
     if (!req.session.userId) {
+      console.log('[AUTH] No userId in session');
       return res.status(401).json({
         message: "Unauthorized - No session",
+        error: "no_session"
       });
     }
-
+    
     try {
+      // Second check: user exists in storage
       const user = await storage.getUser(req.session.userId);
       
       if (!user) {
+        console.log(`[AUTH] User not found for ID: ${req.session.userId}`);
         return res.status(401).json({
           message: "User not found",
+          error: "user_not_found"
         });
       }
-
+      
+      console.log(`[AUTH] Authenticated user: ${user.email}, has tokens: ${!!user.accessToken && !!user.refreshToken}`);
+      
+      // Third check: tokens exist
+      if (!user.accessToken || !user.refreshToken) {
+        console.log(`[AUTH] User ${user.email} is missing required tokens`);
+        return res.status(401).json({
+          message: "Missing Gmail authorization tokens. Please sign in again.",
+          error: "token_missing"
+        });
+      }
+      
+      // All checks passed
       req.user = user;
-      next();
+      return next();
     } catch (error) {
       console.error("Auth middleware error:", error);
-      res.status(500).json({
+      return res.status(500).json({
         message: "Authentication error",
+        error: "auth_error"
       });
     }
   };

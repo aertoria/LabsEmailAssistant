@@ -98,9 +98,6 @@ export function setupAuth(app: Express, storage: IStorage) {
       // Exchange the code for tokens
       const { tokens } = await tempClient.getToken(code);
 
-      // Persist tokens for subsequent requests
-      (req.session as any).tokens = tokens;
-
       // Set credentials on the client so we can query userinfo
       tempClient.setCredentials(tokens);
 
@@ -115,10 +112,10 @@ export function setupAuth(app: Express, storage: IStorage) {
       // Upsert user in DB
       let user = await storage.getUserByUsername(data.email);
       if (user) {
-        await storage.updateUserTokens(
+        user = await storage.updateUserTokens(
           user.id,
           tokens.access_token!,
-          tokens.refresh_token!,
+          tokens.refresh_token || (user.refreshToken as string) || '', // Use existing refresh token if not provided
           tokens.expiry_date ? new Date(tokens.expiry_date) : undefined
         );
       } else {
@@ -131,11 +128,35 @@ export function setupAuth(app: Express, storage: IStorage) {
         });
       }
 
+      // IMPORTANT: This needs to happen before saving tokens, to ensure proper session saving
       // Set user ID in session to establish logged-in state
       req.session.userId = user.id;
+      
+      // Save the session explicitly to ensure it's written before we proceed
+      await new Promise<void>((resolve, reject) => {
+        req.session.save((err: Error | null) => {
+          if (err) {
+            console.error("Error saving session:", err);
+            reject(err);
+          } else {
+            resolve();
+          }
+        });
+      });
+      
+      // After session is saved, store tokens
+      (req.session as any).tokens = tokens;
+      
+      // Double-check session was properly saved by forcing another save
+      await new Promise<void>((resolve) => {
+        req.session.save(() => resolve());
+      });
+      
+      console.log(`User ${user.id} (${user.email}) successfully authenticated and session established`);
 
       return res.status(200).json({ user });
     } catch (err) {
+      console.error("Error during Google authentication:", err);
       next(err);
     }
   });
