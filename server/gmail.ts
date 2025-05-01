@@ -195,6 +195,14 @@ export function setupGmail(app: Express, storage: IStorage) {
     }
   };
   
+  // Define a module-level cache for pagination tokens (simpler than global)
+  const tokenCache: { 
+    [userId: string]: {
+      tokens: { [page: number]: string };
+      lastQuery: string | null | undefined;
+    }
+  } = {};
+  
   // Fetch emails from Gmail API with limit of 100 emails or emails from the last day
   const fetchLimitedEmails = async (user: any, page: number = 1, pageSize: number = 50, query?: string) => {
     try {
@@ -207,11 +215,28 @@ export function setupGmail(app: Express, storage: IStorage) {
         maxResults: 50 // Increased from 10 to 50
       };
       
-      // Only add pageToken for pagination when not searching
-      if (!query && page > 1) {
-        // Use Gmail's nextPageToken format instead of our custom format
-        // this likely caused the 'Invalid pageToken' error
-        listParams.pageToken = page > 1 ? `${page - 1}` : undefined;
+      // Handle pagination using a proper cache of page tokens
+      // Gmail API uses tokens rather than numerical pages
+      // We need to track the tokens for each user
+      const userId = user.id.toString();
+      
+      if (!tokenCache[userId]) {
+        tokenCache[userId] = {
+          tokens: {},
+          lastQuery: null
+        };
+      }
+      
+      // Reset token cache if query changes
+      if (tokenCache[userId].lastQuery !== query) {
+        tokenCache[userId].tokens = {};
+        tokenCache[userId].lastQuery = query;
+      }
+      
+      // Use the appropriate page token if we have one for this page
+      if (page > 1 && tokenCache[userId].tokens[page-1]) {
+        listParams.pageToken = tokenCache[userId].tokens[page-1];
+        console.log(`Using stored page token for page ${page}: ${listParams.pageToken}`);
       }
       
       // Add search query if provided
@@ -222,6 +247,12 @@ export function setupGmail(app: Express, storage: IStorage) {
       const response = await gmail.users.messages.list(listParams);
       
       console.log(`Found ${response.data.messages?.length || 0} messages`);
+      
+      // Store the next page token for future use
+      if (response.data.nextPageToken) {
+        tokenCache[userId].tokens[page] = response.data.nextPageToken;
+        console.log(`Stored page token for page ${page+1}: ${response.data.nextPageToken}`);
+      }
       
       // Return messages list
       return {
