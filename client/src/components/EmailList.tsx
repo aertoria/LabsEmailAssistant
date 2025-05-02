@@ -515,23 +515,32 @@ export function EmailList({ onEmailsLoaded }: { onEmailsLoaded?: (emails: any[])
                 
                 {/* Cluster emails preview section */}
                 <div className="p-4 bg-blue-50 border-b border-blue-200">
-                  <h3 className="text-sm font-semibold text-blue-800 mb-2">Cluster Email Contents:</h3>
-                  <div className="space-y-2 max-h-40 overflow-y-auto pr-2">
+                  <h3 className="text-sm font-semibold flex items-center text-blue-800 mb-2">
+                    <span className="mr-1">📋</span> All Emails in This Cluster:
+                  </h3>
+                  <div className="space-y-2 max-h-72 overflow-y-auto pr-2 rounded-md">
                     {sortedEmails
                       .filter(email => clusterEmailIds.includes(email.id))
-                      .slice(0, 3) // Show just the first 3 emails
                       .map((email, index) => (
-                        <div key={email.id} className="p-2 bg-white rounded shadow-sm border border-blue-200">
-                          <p className="text-xs text-blue-600 font-medium mb-1">From: {email.from}</p>
+                        <div 
+                          key={email.id} 
+                          className="p-3 bg-white rounded shadow-sm border border-blue-200 transition-all hover:shadow-md hover:border-blue-400 cursor-pointer flex flex-col"
+                          onClick={() => handleEmailClick(email.id)}
+                        >
+                          <div className="flex justify-between items-start mb-1">
+                            <p className="text-xs text-blue-600 font-medium truncate flex-1">From: {email.from}</p>
+                            <p className="text-xs text-gray-500 whitespace-nowrap ml-2">
+                              {/* Use the same date formatting function as in EmailItem */}
+                              {new Date(email.receivedAt || email.date || new Date()).toLocaleDateString()}
+                            </p>
+                          </div>
                           <p className="text-sm font-medium text-gray-800 mb-1">{email.subject}</p>
                           <p className="text-xs text-gray-600 line-clamp-2">{email.snippet}</p>
+                          <div className="text-right mt-1">
+                            <span className="text-xs text-blue-500 hover:underline">View email →</span>
+                          </div>
                         </div>
                       ))}
-                    {clusterEmailIds.length > 3 && (
-                      <p className="text-xs text-center text-blue-500 mt-1">
-                        + {clusterEmailIds.length - 3} more emails in this cluster
-                      </p>
-                    )}
                   </div>
                 </div>
               </>
