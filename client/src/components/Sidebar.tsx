@@ -2,14 +2,10 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Separator } from "@/components/ui/separator";
 import { Progress } from "@/components/ui/progress";
-import { Inbox, Star, Clock, Send, FileText, Trash, Edit, Network } from "lucide-react";
+import { Inbox, Star, Clock, Send, FileText, Trash, Edit } from "lucide-react";
 
-interface SidebarProps {
-  activeFolder: string;
-  onFolderChange: (folder: string) => void;
-}
-
-export function Sidebar({ activeFolder, onFolderChange }: SidebarProps) {
+export function Sidebar() {
+  const [activeFolder, setActiveFolder] = useState("inbox");
 
   // Fetch labels
   const { data: labels } = useQuery<any[]>({
@@ -29,7 +25,6 @@ export function Sidebar({ activeFolder, onFolderChange }: SidebarProps) {
 
   const folders = [
     { id: "inbox", name: "Inbox", Icon: Inbox, count: 0 },
-    { id: "flow", name: "Flow", Icon: Network, count: 0 },
     { id: "starred", name: "Starred", Icon: Star, count: 0 },
     { id: "snoozed", name: "Snoozed", Icon: Clock, count: 0 },
     { id: "sent", name: "Sent", Icon: Send, count: 0 },
@@ -56,7 +51,7 @@ export function Sidebar({ activeFolder, onFolderChange }: SidebarProps) {
                   href="#"
                   onClick={(e) => {
                     e.preventDefault();
-                    onFolderChange(folder.id);
+                    setActiveFolder(folder.id);
                   }}
                   className={`flex items-center px-4 py-2 text-gray-800 ${activeFolder === folder.id ? "bg-blue-50 border-r-4 border-blue-500" : "hover:bg-gray-100"}`}
                 >

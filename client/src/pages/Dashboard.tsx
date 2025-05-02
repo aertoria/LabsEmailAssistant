@@ -5,7 +5,6 @@ import { Sidebar } from "@/components/Sidebar";
 import { EmailList } from "@/components/EmailList";
 import { AISidebar } from "@/components/AISidebar";
 import { SyncStatus } from "@/components/SyncStatus";
-import { FlowView } from "@/components/FlowView";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/useAuth";
 
@@ -16,7 +15,6 @@ export default function Dashboard() {
   const [localUser, setLocalUser] = useState<any>(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [emails, setEmails] = useState<any[]>([]);
-  const [activeFolder, setActiveFolder] = useState("inbox");
   
   // Check auth status once at initialization
   useEffect(() => {
@@ -154,21 +152,9 @@ export default function Dashboard() {
       <Header user={user} onSignOut={handleSignOut} />
       
       <main className="flex-1 flex overflow-hidden">
-        <Sidebar 
-          activeFolder={activeFolder} 
-          onFolderChange={setActiveFolder} 
-        />
-        
-        {activeFolder === "flow" ? (
-          <div className="flex-1 overflow-hidden">
-            <FlowView />
-          </div>
-        ) : (
-          <>
-            <EmailList onEmailsLoaded={setEmails} />
-            <AISidebar emails={emails} />
-          </>
-        )}
+        <Sidebar />
+        <EmailList onEmailsLoaded={setEmails} />
+        <AISidebar emails={emails} />
       </main>
       
       {syncStatus && syncStatus.isActive && (
