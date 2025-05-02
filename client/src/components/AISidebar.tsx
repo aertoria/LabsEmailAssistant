@@ -247,9 +247,9 @@ export function AISidebar({ emails }: { emails: any[] }) {
     }
   };
   
-  // Function to handle cluster click and open detailed view
+  // Function to handle cluster click and highlight related emails
   const handleClusterClick = (cluster: EmailCluster) => {
-    // Toggle selection and detail view
+    // Toggle selection - deselect if already selected
     if (selectedCluster?.id === cluster.id) {
       setSelectedCluster(null);
       setShowClusterDetail(false);
@@ -274,13 +274,12 @@ export function AISidebar({ emails }: { emails: any[] }) {
         window._clusterResizeHandler = undefined;
       }
     } else {
-      // Set the new selected cluster and open detail view
+      // Set the new selected cluster and show the detail view in the side panel
       setSelectedCluster(cluster);
       setShowClusterDetail(true);
       
-      // Switch to a custom tab that will show the cluster details
-      const newTabValue = `cluster-detail-${cluster.id}`;
-      setActiveTab(newTabValue);
+      // Keep the clusters tab selected, but show the details in the right panel
+      // This keeps us on the same tab instead of switching to a separate detail tab
       
       // Small delay to ensure DOM is ready
       setTimeout(() => {
@@ -496,15 +495,6 @@ export function AISidebar({ emails }: { emails: any[] }) {
           <TabsTrigger value="clusters">Clusters</TabsTrigger>
           <TabsTrigger value="senders">Senders</TabsTrigger>
           <TabsTrigger value="drafts">Drafts</TabsTrigger>
-          {/* This hidden trigger gets activated when a cluster is clicked */}
-          {selectedCluster && (
-            <TabsTrigger 
-              value={`cluster-detail-${selectedCluster.id}`} 
-              className="hidden"
-            >
-              {selectedCluster.title}
-            </TabsTrigger>
-          )}
         </TabsList>
         
         <TabsContent value="daily" className="space-y-4 flex-grow">
@@ -604,96 +594,146 @@ export function AISidebar({ emails }: { emails: any[] }) {
         </TabsContent>
 
         <TabsContent value="clusters" className="space-y-4 flex-grow">
-          <div className="flex justify-between items-center mb-2">
-            <h3 className="text-base font-medium">Email Topic Clusters</h3>
-            {!generatedClusters.length && renderGenerateButton('clusters')}
-          </div>
-          
-          {isGenerating && activeTab === 'clusters' ? (
-            <Card className="p-4">
-              <Skeleton className="h-6 w-3/4 mb-3" />
-              <Skeleton className="h-4 w-1/2 mb-1" />
-              <Skeleton className="h-4 w-5/6 mb-3" />
-              <Skeleton className="h-20 w-full mb-4" />
+          {/* Two-column layout for clusters with detail panel */}
+          <div className="flex flex-row">
+            {/* Left column: List of clusters */}
+            <div className={`${showClusterDetail ? 'w-1/2 pr-3' : 'w-full'} transition-all duration-300 ease-in-out`}>
+              <div className="flex justify-between items-center mb-2">
+                <h3 className="text-base font-medium">Email Topic Clusters</h3>
+                {!generatedClusters.length && renderGenerateButton('clusters')}
+              </div>
               
-              <Skeleton className="h-6 w-3/4 mb-3" />
-              <Skeleton className="h-4 w-1/2 mb-1" />
-              <Skeleton className="h-4 w-5/6 mb-3" />
-              <Skeleton className="h-20 w-full" />
-            </Card>
-          ) : generatedClusters.length > 0 ? (
-            <div className="space-y-6">
-              {generatedClusters.map((cluster) => (
-                <Card 
-                  key={cluster.id} 
-                  className={`overflow-hidden bg-gradient-to-br from-gray-50 to-white border-gray-200 cursor-pointer transition-all hover:shadow-md hover:border-blue-300 active:bg-blue-50 ${selectedCluster?.id === cluster.id ? 'ring-2 ring-blue-500' : ''}`}
-                  role="button"
-                  aria-label={`View details for ${cluster.title} cluster`}
-                  tabIndex={0}
-                  // Also handle keyboard navigation
-                  onKeyDown={(e) => e.key === 'Enter' && handleClusterClick(cluster)}
-                  onClick={() => handleClusterClick(cluster)}
-                  data-cluster-id={cluster.id}
-                >
-                  <div className="p-4 border-b border-gray-100">
-                    <div className="flex justify-between items-start mb-1">
-                      <h4 className="text-lg font-semibold text-blue-700">{cluster.title}</h4>
-                      <Badge className="bg-blue-100 text-blue-800 hover:bg-blue-200">
-                        {cluster.threadCount} {cluster.threadCount === 1 ? 'Thread' : 'Threads'}
-                      </Badge>
-                    </div>
-                    
-                    <ul className="space-y-2 my-2">
-                      {cluster.preview.map((item, index) => (
-                        <li key={index} className="text-sm text-gray-700 pl-4 border-l-2 border-blue-200">
-                          {item}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
+              {isGenerating && activeTab === 'clusters' ? (
+                <Card className="p-4">
+                  <Skeleton className="h-6 w-3/4 mb-3" />
+                  <Skeleton className="h-4 w-1/2 mb-1" />
+                  <Skeleton className="h-4 w-5/6 mb-3" />
+                  <Skeleton className="h-20 w-full mb-4" />
                   
-                  <div className="p-4 bg-blue-50">
-                    <h5 className="text-xs font-medium text-gray-500 mb-1">CLUSTER SUMMARY</h5>
-                    <p className="text-sm text-gray-700">{cluster.summary}</p>
-                  </div>
-                  
-                  <div className="flex divide-x divide-gray-200 border-t border-gray-200">
+                  <Skeleton className="h-6 w-3/4 mb-3" />
+                  <Skeleton className="h-4 w-1/2 mb-1" />
+                  <Skeleton className="h-4 w-5/6 mb-3" />
+                  <Skeleton className="h-20 w-full" />
+                </Card>
+              ) : generatedClusters.length > 0 ? (
+                <div className="space-y-4">
+                  {generatedClusters.map((cluster) => (
+                    <Card 
+                      key={cluster.id} 
+                      className={`overflow-hidden bg-gradient-to-br from-gray-50 to-white border-gray-200 cursor-pointer transition-all hover:shadow-md hover:border-blue-300 active:bg-blue-50 cluster-card ${selectedCluster?.id === cluster.id ? 'ring-2 ring-blue-500 bg-blue-50' : ''}`}
+                      role="button"
+                      aria-label={`View details for ${cluster.title} cluster`}
+                      tabIndex={0}
+                      // Also handle keyboard navigation
+                      onKeyDown={(e) => e.key === 'Enter' && handleClusterClick(cluster)}
+                      onClick={() => handleClusterClick(cluster)}
+                      data-cluster-id={cluster.id}
+                    >
+                      <div className="p-3 border-b border-gray-100">
+                        <div className="flex justify-between items-start mb-1">
+                          <h4 className="text-md font-semibold text-blue-700 truncate">{cluster.title}</h4>
+                          <Badge className="bg-blue-100 text-blue-800 hover:bg-blue-200 ml-2 flex-shrink-0">
+                            {cluster.threadCount}
+                          </Badge>
+                        </div>
+                        
+                        <ul className="space-y-1 my-1">
+                          {cluster.preview.map((item, index) => (
+                            <li key={index} className="text-xs text-gray-700 pl-3 border-l-2 border-blue-200 truncate">
+                              {item}
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    </Card>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-12 text-gray-500">
+                  <Layers size={40} className="mx-auto mb-3 text-gray-400" />
+                  <p className="text-base">Group similar emails into topic clusters</p>
+                  <p className="text-sm mt-1 mb-4">AI will analyze your emails and group them by project, topic, or sender</p>
+                  {renderGenerateButton('clusters')}
+                </div>
+              )}
+            </div>
+            
+            {/* Right column: Cluster detail panel */}
+            {showClusterDetail && selectedCluster && (
+              <div className="w-1/2 pl-3 border-l border-gray-200 cluster-detail-panel">
+                <div className="flex justify-between items-center mb-4">
+                  <div className="flex items-center">
                     <Button 
                       variant="ghost" 
-                      className="flex-1 rounded-none text-blue-600 py-3 h-auto"
-                      onClick={(e) => {
-                        e.stopPropagation(); // Prevent card click event
-                        // Summarize functionality can be added here
-                        console.log('Summarize clicked for cluster:', cluster.id);
+                      size="sm" 
+                      className="mr-2 back-button-transition" 
+                      onClick={() => {
+                        setSelectedCluster(null);
+                        setShowClusterDetail(false);
                       }}
                     >
-                      <FileText size={16} className="mr-2" />
-                      Summarize Cluster
+                      <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                      </svg>
+                      Close
                     </Button>
-                    <Button 
-                      variant="ghost" 
-                      className="flex-1 rounded-none text-green-600 py-3 h-auto"
-                      onClick={(e) => {
-                        e.stopPropagation(); // Prevent card click event
-                        // Draft functionality can be added here
-                        console.log('Draft clicked for cluster:', cluster.id);
-                      }}
-                    >
-                      <PenLine size={16} className="mr-2" />
-                      Draft from Cluster
+                    <h3 className="text-lg font-medium text-blue-700">{selectedCluster.title}</h3>
+                  </div>
+                </div>
+
+                <Card className="p-4 mb-4 cluster-summary-card">
+                  <h4 className="text-sm font-semibold mb-2">Cluster Summary</h4>
+                  <p className="text-sm text-gray-700">{selectedCluster.summary}</p>
+                  
+                  <div className="flex mt-4 pt-4 border-t border-blue-100 justify-between">
+                    <Button size="sm" variant="outline" className="text-blue-600">
+                      <FileText size={14} className="mr-1" /> Summarize All
+                    </Button>
+                    <Button size="sm" variant="outline" className="text-green-600">
+                      <PenLine size={14} className="mr-1" /> Draft Response
                     </Button>
                   </div>
                 </Card>
-              ))}
-            </div>
-          ) : (
-            <div className="text-center py-12 text-gray-500">
-              <Layers size={40} className="mx-auto mb-3 text-gray-400" />
-              <p className="text-base">Group similar emails into topic clusters</p>
-              <p className="text-sm mt-1 mb-4">AI will analyze your emails and group them by project, topic, or sender</p>
-              {renderGenerateButton('clusters')}
-            </div>
-          )}
+
+                <div className="space-y-3">
+                  <div className="flex items-center">
+                    <h4 className="text-sm font-semibold">Related Emails</h4>
+                    <span className="ml-2 px-2 py-0.5 text-xs bg-blue-100 text-blue-800 rounded-full">
+                      {selectedCluster.emailIds.length} emails
+                    </span>
+                  </div>
+                  {selectedCluster.emailIds.map((emailId, index) => {
+                    // Find the email based on ID from our mocked data
+                    const emailIndex = Number(emailId.replace('email-', '')) - 1;
+                    const email = emails[emailIndex >= 0 && emailIndex < emails.length ? emailIndex : 0];
+                    
+                    return (
+                      <Card key={emailId} className="overflow-hidden cluster-detail-card email-list-animation" style={{animationDelay: `${index * 0.05}s`}}>
+                        <div className="p-3">
+                          <div className="flex justify-between">
+                            <h5 className="font-medium text-sm truncate">{email?.subject || `Thread ${index + 1}`}</h5>
+                            <span className="text-xs text-gray-500">{email?.receivedAt || 'Today'}</span>
+                          </div>
+                          <div className="text-xs text-gray-500 mt-1 mb-1">{email?.from || 'sender@example.com'}</div>
+                          <p className="text-xs text-gray-700">
+                            {email?.snippet || selectedCluster.preview[index % selectedCluster.preview.length] || 'Email content preview...'}
+                          </p>
+                        </div>
+                        <div className="bg-gray-50 p-2 border-t flex justify-end gap-2">
+                          <Button size="sm" variant="outline" className="h-7 text-xs">
+                            <FileText size={12} className="mr-1" /> View
+                          </Button>
+                          <Button size="sm" variant="outline" className="h-7 text-xs text-green-600">
+                            <PenLine size={12} className="mr-1" /> Reply
+                          </Button>
+                        </div>
+                      </Card>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+          </div>
         </TabsContent>
         
         <TabsContent value="senders" className="space-y-4 flex-grow">
@@ -750,77 +790,7 @@ export function AISidebar({ emails }: { emails: any[] }) {
           )}
         </TabsContent>
         
-        {/* Dynamic TabsContent for Cluster Details - shown when a cluster is selected */}
-        {selectedCluster && (
-          <TabsContent value={`cluster-detail-${selectedCluster.id}`} className="space-y-4 flex-grow">
-            <div className="flex justify-between items-center mb-4">
-              <div className="flex items-center">
-                <Button 
-                  variant="ghost" 
-                  size="sm" 
-                  className="mr-2 back-button-transition" 
-                  onClick={() => {
-                    setActiveTab('clusters');
-                    setSelectedCluster(null);
-                    setShowClusterDetail(false);
-                  }}
-                >
-                  <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                  </svg>
-                  Back
-                </Button>
-                <h3 className="text-lg font-medium text-blue-700">{selectedCluster.title}</h3>
-              </div>
-              <Badge className="bg-blue-100 text-blue-800">
-                {selectedCluster.threadCount} {selectedCluster.threadCount === 1 ? 'Thread' : 'Threads'}
-              </Badge>
-            </div>
-
-            <Card className="p-5 mb-6 cluster-summary-card">
-              <h4 className="text-sm font-semibold mb-2">Cluster Summary</h4>
-              <p className="text-sm text-gray-700">{selectedCluster.summary}</p>
-            </Card>
-
-            <div className="space-y-4">
-              <div className="flex items-center">
-                <h4 className="text-sm font-semibold">Related Email Threads</h4>
-                <span className="ml-2 px-2 py-0.5 text-xs bg-blue-100 text-blue-800 rounded-full">
-                  {selectedCluster.emailIds.length} emails
-                </span>
-              </div>
-              {selectedCluster.emailIds.map((emailId, index) => {
-                // Find the email based on ID from our mocked data
-                // In a real implementation, you'd fetch email details from the server or use a more sophisticated data structure
-                const emailIndex = Number(emailId.replace('email-', '')) - 1;
-                const email = emails[emailIndex >= 0 && emailIndex < emails.length ? emailIndex : 0];
-                
-                return (
-                  <Card key={emailId} className="overflow-hidden cluster-detail-card email-list-animation" style={{animationDelay: `${index * 0.05}s`}}>
-                    <div className="p-4">
-                      <div className="flex justify-between">
-                        <h5 className="font-medium text-sm truncate">{email?.subject || `Thread ${index + 1}`}</h5>
-                        <span className="text-xs text-gray-500">{email?.receivedAt || 'Today'}</span>
-                      </div>
-                      <div className="text-xs text-gray-500 mt-1 mb-2">{email?.from || 'sender@example.com'}</div>
-                      <p className="text-sm text-gray-700">
-                        {email?.snippet || selectedCluster.preview[index % selectedCluster.preview.length] || 'Email content preview...'}
-                      </p>
-                    </div>
-                    <div className="bg-gray-50 p-3 border-t flex justify-end gap-2">
-                      <Button size="sm" variant="outline">
-                        <FileText size={14} className="mr-1" /> View Full Thread
-                      </Button>
-                      <Button size="sm" variant="outline" className="text-green-600">
-                        <PenLine size={14} className="mr-1" /> Reply
-                      </Button>
-                    </div>
-                  </Card>
-                );
-              })}
-            </div>
-          </TabsContent>
-        )}
+        {/* We've removed the separate TabsContent for cluster details since we're now showing them in a side panel */}
         
         <TabsContent value="drafts" className="space-y-4 flex-grow">
           <div className="flex justify-between items-center mb-2">
