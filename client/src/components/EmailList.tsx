@@ -235,7 +235,7 @@ export function EmailList({ onEmailsLoaded }: { onEmailsLoaded?: (emails: any[])
     };
   }, []);
   
-  // Filter out OpenAI emails and Recruiting Calls, then sort to bring cluster-related emails to the top
+  // Filter out unwanted emails, then sort to bring cluster-related emails to the top
   const sortedEmails = useMemo(() => {
     // Filter out unwanted emails
     const filteredEmails = emails.filter((email: any) => {
@@ -245,8 +245,11 @@ export function EmailList({ onEmailsLoaded }: { onEmailsLoaded?: (emails: any[])
       // Check if the email subject contains "Recruiting Call"
       const isRecruitingCall = email.subject.includes('Recruiting Call');
       
-      // Return true only if it passes both filters (not from OpenAI and not a recruiting call)
-      return !isFromOpenAI && !isRecruitingCall;
+      // Check if the email subject contains "OpenAI"
+      const hasOpenAIInSubject = email.subject.includes('OpenAI');
+      
+      // Return true only if it passes all filters
+      return !isFromOpenAI && !isRecruitingCall && !hasOpenAIInSubject;
     });
     
     // If not in cluster mode, just return the filtered emails
