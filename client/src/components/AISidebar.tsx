@@ -4,7 +4,7 @@ import { Separator } from "@/components/ui/separator";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Tabs, TabsContent } from "@/components/ui/tabs";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { BarChart, CheckCircle, Clock, FileText, LineChart, MessageCircle, RefreshCw, Send, ThumbsDown, ThumbsUp, AlertTriangle } from "lucide-react";
 import { getQueryFn } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -48,6 +48,15 @@ interface SenderInsight {
   responseRate: number;
 }
 
+interface EmailCluster {
+  id: string;
+  title: string;
+  threadCount: number;
+  emailIds: string[];
+  preview: string[];
+  summary: string;
+}
+
 interface EmailDraft {
   id: string;
   to: string;
@@ -66,6 +75,7 @@ export function AISidebar({ emails }: { emails: any[] }) {
   const [isGenerating, setIsGenerating] = useState(false);
   const [generatedDailyDigest, setGeneratedDailyDigest] = useState<DailyDigest | null>(null);
   const [generatedSenderInsights, setGeneratedSenderInsights] = useState<SenderInsight[]>([]);
+  const [generatedClusters, setGeneratedClusters] = useState<EmailCluster[]>([]);
   const [generatedDrafts, setGeneratedDrafts] = useState<EmailDraft[]>([]);
   const { toast } = useToast();
   
@@ -82,7 +92,7 @@ export function AISidebar({ emails }: { emails: any[] }) {
   });
   
   // Function to generate AI analysis
-  const generateAIAnalysis = async (type: 'daily' | 'senders' | 'drafts') => {
+  const generateAIAnalysis = async (type: 'daily' | 'senders' | 'clusters' | 'drafts') => {
     setIsGenerating(true);
     
     try {
@@ -115,6 +125,50 @@ export function AISidebar({ emails }: { emails: any[] }) {
         
         console.log('[AISidebar] Formatted digest:', digest);
         setGeneratedDailyDigest(digest);
+      } else if (type === 'clusters') {
+        // Generate email clusters
+        console.log('[AISidebar] Generating email clusters...');
+        
+        setTimeout(() => {
+          // Sample cluster data based on the example
+          setGeneratedClusters([
+            {
+              id: 'cluster-1',
+              title: 'Project Phoenix - Core Dev',
+              threadCount: 7,
+              emailIds: ['email-1', 'email-2', 'email-3', 'email-4', 'email-5', 'email-6', 'email-7'],
+              preview: [
+                'User Story #1023: API endpoint for user profiles.',
+                'Bug #988: Login page redirect issue on mobile.'
+              ],
+              summary: 'Key development areas include new API endpoints, critical bug fixes for login, and ongoing discussions about technology choices (charting library). Several pull requests are active, focusing on refactoring core modules like authentication.'
+            },
+            {
+              id: 'cluster-2',
+              title: 'Q3 Marketing Campaign',
+              threadCount: 12,
+              emailIds: ['email-8', 'email-9', 'email-10', 'email-11', 'email-12', 'email-13', 'email-14', 'email-15', 'email-16', 'email-17', 'email-18', 'email-19'],
+              preview: [
+                'Planning: Social Media Calendar for July.',
+                'Assets: Request for new banner designs.'
+              ],
+              summary: 'Marketing campaign planning for Q3 includes social media calendar development, asset creation for new banners, and coordination with design team for visual materials. Several approvals pending for budget and creative direction.'
+            },
+            {
+              id: 'cluster-3',
+              title: 'User Feedback - Mobile v2.1',
+              threadCount: 25,
+              emailIds: ['email-20', 'email-21', 'email-22', 'email-23', 'email-24'],
+              preview: [
+                'Feature Request: Dark mode for iOS.',
+                'Issue: App crashing on older Android devices.'
+              ],
+              summary: 'User feedback for the mobile app v2.1 includes feature requests like dark mode for iOS and reports of crashes on older Android devices. The product team is prioritizing fixes for stability issues before implementing new features.'
+            }
+          ]);
+          setIsGenerating(false);
+        }, 1500);
+        return;
       } else if (type === 'senders') {
         // Mock data for other tabs until they are implemented
         setTimeout(() => {
@@ -204,7 +258,7 @@ export function AISidebar({ emails }: { emails: any[] }) {
   };
   
   // Generate button that will trigger AI analysis
-  const renderGenerateButton = (type: 'daily' | 'senders' | 'drafts') => (
+  const renderGenerateButton = (type: 'daily' | 'senders' | 'clusters' | 'drafts') => (
     <Button 
       variant="outline" 
       size="sm" 
@@ -234,6 +288,12 @@ export function AISidebar({ emails }: { emails: any[] }) {
       </h2>
       
       <Tabs defaultValue="daily" className="flex-grow flex flex-col" onValueChange={(value) => setActiveTab(value as any)}>
+        <TabsList className="grid grid-cols-4 mb-4">
+          <TabsTrigger value="daily">Daily</TabsTrigger>
+          <TabsTrigger value="clusters">Clusters</TabsTrigger>
+          <TabsTrigger value="senders">Senders</TabsTrigger>
+          <TabsTrigger value="drafts">Drafts</TabsTrigger>
+        </TabsList>
         
         <TabsContent value="daily" className="space-y-4 flex-grow">
           <div className="flex justify-between items-center mb-2">
@@ -328,6 +388,180 @@ export function AISidebar({ emails }: { emails: any[] }) {
                 <p className="text-sm text-gray-600">No high-priority email identified.</p>
               )}
             </Card>
+          )}
+        </TabsContent>
+
+        <TabsContent value="clusters" className="space-y-4 flex-grow">
+          <div className="flex justify-between items-center mb-2">
+            <h3 className="text-base font-medium">Email Topic Clusters</h3>
+            {!generatedClusters.length && renderGenerateButton('clusters')}
+          </div>
+          
+          {isGenerating && activeTab === 'clusters' ? (
+            <Card className="p-4">
+              <Skeleton className="h-6 w-3/4 mb-3" />
+              <Skeleton className="h-4 w-1/2 mb-1" />
+              <Skeleton className="h-4 w-5/6 mb-3" />
+              <Skeleton className="h-20 w-full mb-4" />
+              
+              <Skeleton className="h-6 w-3/4 mb-3" />
+              <Skeleton className="h-4 w-1/2 mb-1" />
+              <Skeleton className="h-4 w-5/6 mb-3" />
+              <Skeleton className="h-20 w-full" />
+            </Card>
+          ) : generatedClusters.length > 0 ? (
+            <div className="space-y-6">
+              {generatedClusters.map((cluster) => (
+                <Card key={cluster.id} className="overflow-hidden bg-gradient-to-br from-gray-50 to-white border-gray-200">
+                  <div className="p-4 border-b border-gray-100">
+                    <div className="flex justify-between items-start mb-1">
+                      <h4 className="text-lg font-semibold text-blue-700">{cluster.title}</h4>
+                      <Badge className="bg-blue-100 text-blue-800 hover:bg-blue-200">
+                        {cluster.threadCount} {cluster.threadCount === 1 ? 'Thread' : 'Threads'}
+                      </Badge>
+                    </div>
+                    
+                    <ul className="space-y-2 my-2">
+                      {cluster.preview.map((item, index) => (
+                        <li key={index} className="text-sm text-gray-700 pl-4 border-l-2 border-blue-200">
+                          {item}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                  
+                  <div className="p-4 bg-blue-50">
+                    <h5 className="text-xs font-medium text-gray-500 mb-1">CLUSTER SUMMARY</h5>
+                    <p className="text-sm text-gray-700">{cluster.summary}</p>
+                  </div>
+                  
+                  <div className="flex divide-x divide-gray-200 border-t border-gray-200">
+                    <Button variant="ghost" className="flex-1 rounded-none text-blue-600 py-3 h-auto">
+                      <FileText size={16} className="mr-2" />
+                      Summarize Cluster
+                    </Button>
+                    <Button variant="ghost" className="flex-1 rounded-none text-green-600 py-3 h-auto">
+                      <PenLine size={16} className="mr-2" />
+                      Draft from Cluster
+                    </Button>
+                  </div>
+                </Card>
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-12 text-gray-500">
+              <Layers size={40} className="mx-auto mb-3 text-gray-400" />
+              <p className="text-base">Group similar emails into topic clusters</p>
+              <p className="text-sm mt-1 mb-4">AI will analyze your emails and group them by project, topic, or sender</p>
+              {renderGenerateButton('clusters')}
+            </div>
+          )}
+        </TabsContent>
+        
+        <TabsContent value="senders" className="space-y-4 flex-grow">
+          <div className="flex justify-between items-center mb-2">
+            <h3 className="text-base font-medium">Sender & Thread Insights</h3>
+            {!generatedSenderInsights.length && renderGenerateButton('senders')}
+          </div>
+          
+          {isGenerating && activeTab === 'senders' ? (
+            <Card className="p-4">
+              <Skeleton className="h-4 w-3/4 mb-2" />
+              <Skeleton className="h-4 w-1/2 mb-2" />
+              <Skeleton className="h-4 w-5/6 mb-4" />
+              <Skeleton className="h-4 w-3/4 mb-2" />
+              <Skeleton className="h-4 w-1/2 mb-2" />
+              <Skeleton className="h-4 w-5/6 mb-4" />
+            </Card>
+          ) : generatedSenderInsights.length > 0 ? (
+            <div className="space-y-3">
+              {generatedSenderInsights.map((insight) => (
+                <Card key={insight.sender} className="p-3">
+                  <div className="mb-2 flex justify-between items-start">
+                    <h4 className="font-medium">{insight.sender}</h4>
+                    <Badge variant="outline">{insight.threadCount} threads</Badge>
+                  </div>
+                  
+                  <div className="mb-2 text-sm">
+                    <p className="text-xs text-gray-500 mb-1">RECENT SUBJECTS</p>
+                    <ul className="list-disc list-inside text-gray-600 text-xs">
+                      {insight.recentSubjects.map((subject, i) => (
+                        <li key={i}>{subject}</li>
+                      ))}
+                    </ul>
+                  </div>
+                  
+                  <div className="flex justify-between text-xs">
+                    <div>
+                      <span className="text-gray-500">Trend: </span>
+                      {renderSentiment(insight.sentimentTrend)}
+                    </div>
+                    <div>
+                      <span className="text-gray-500">Response Rate: </span>
+                      <span className="font-medium">{insight.responseRate}%</span>
+                    </div>
+                  </div>
+                </Card>
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-8 text-gray-500">
+              <LineChart size={40} className="mx-auto mb-2 text-gray-400" />
+              <p className="text-sm">Generate insights about senders and conversations</p>
+            </div>
+          )}
+        </TabsContent>
+        
+        <TabsContent value="drafts" className="space-y-4 flex-grow">
+          <div className="flex justify-between items-center mb-2">
+            <h3 className="text-base font-medium">AI-Generated Reply Drafts</h3>
+            {!generatedDrafts.length && renderGenerateButton('drafts')}
+          </div>
+          
+          {isGenerating && activeTab === 'drafts' ? (
+            <Card className="p-4">
+              <Skeleton className="h-4 w-3/4 mb-2" />
+              <Skeleton className="h-4 w-5/6 mb-2" />
+              <Skeleton className="h-4 w-2/3 mb-2" />
+              <Skeleton className="h-16 w-full mt-2 mb-2" />
+              <Skeleton className="h-8 w-1/3 mt-2" />
+            </Card>
+          ) : generatedDrafts.length > 0 ? (
+            <div className="space-y-3">
+              {generatedDrafts.map((draft) => (
+                <Card key={draft.id} className="p-3">
+                  {draft.replyToEmail && (
+                    <div className="mb-3 pb-2 border-b border-gray-100">
+                      <p className="text-xs text-gray-500">REPLYING TO</p>
+                      <p className="text-sm font-medium truncate">{draft.replyToEmail.subject}</p>
+                      <p className="text-xs text-gray-600 truncate">{draft.replyToEmail.from}</p>
+                    </div>
+                  )}
+                  
+                  <div className="mb-3">
+                    <p className="text-sm font-medium">{draft.subject}</p>
+                    <p className="text-xs text-gray-500 mb-2">To: {draft.to}</p>
+                    <p className="text-sm text-gray-700 whitespace-pre-line">{draft.draftContent}</p>
+                  </div>
+                  
+                  <div className="flex space-x-2">
+                    <Button size="sm" className="flex items-center" variant="default">
+                      <Send size={14} className="mr-1" />
+                      Send
+                    </Button>
+                    <Button size="sm" className="flex items-center" variant="outline">
+                      <FileText size={14} className="mr-1" />
+                      Edit
+                    </Button>
+                  </div>
+                </Card>
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-8 text-gray-500">
+              <FileText size={40} className="mx-auto mb-2 text-gray-400" />
+              <p className="text-sm">Generate reply drafts for important emails</p>
+            </div>
           )}
         </TabsContent>
       </Tabs>
