@@ -108,7 +108,7 @@ export function EmailItem({ email, isSelected, onSelect, onClick, isInCluster }:
       className={`border-b border-gray-200 cursor-pointer hover:shadow-sm ${
         !email.isRead ? 'font-medium' : ''
       } ${
-        isInCluster ? 'bg-blue-50 shadow-md border-l-4 border-l-blue-500' : 'bg-white'
+        isInCluster ? 'bg-blue-50 shadow-md border-l-4 border-l-blue-500 relative after:absolute after:top-0 after:right-0 after:w-1 after:h-full after:bg-blue-500' : 'bg-white'
       }`}
       onClick={handleEmailClick}
       data-email-id={email.id}

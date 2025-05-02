@@ -498,7 +498,7 @@ export function EmailList({ onEmailsLoaded }: { onEmailsLoaded?: (emails: any[])
             {/* Display cluster related info if active */}
             {activeClusterId && clusterEmailIds.length > 0 && (
               <>
-                <div className="p-3 bg-blue-100 text-blue-800 font-medium flex items-center justify-between">
+                <div className="p-3 bg-blue-100 text-blue-800 font-medium flex items-center justify-between sticky top-0 z-10 shadow-sm">
                   <div>
                     <span className="text-blue-900">Showing {clusterEmailIds.length} emails from selected cluster</span>
                   </div>
@@ -520,11 +520,11 @@ export function EmailList({ onEmailsLoaded }: { onEmailsLoaded?: (emails: any[])
                   </h3>
                   <div className="space-y-2 max-h-72 overflow-y-auto pr-2 rounded-md">
                     {sortedEmails
-                      .filter(email => clusterEmailIds.includes(email.id))
-                      .map((email, index) => (
+                      .filter((email: any) => clusterEmailIds.includes(email.id))
+                      .map((email: any, index: number) => (
                         <div 
                           key={email.id} 
-                          className="p-3 bg-white rounded shadow-sm border border-blue-200 transition-all hover:shadow-md hover:border-blue-400 cursor-pointer flex flex-col"
+                          className="p-3 bg-blue-50 rounded shadow-sm border border-blue-300 transition-all hover:shadow-md hover:bg-white hover:border-blue-400 cursor-pointer flex flex-col relative"
                           onClick={() => handleEmailClick(email.id)}
                         >
                           <div className="flex justify-between items-start mb-1">
