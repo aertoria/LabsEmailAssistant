@@ -77,6 +77,7 @@ export function AISidebar({ emails }: { emails: any[] }) {
   const [generatedSenderInsights, setGeneratedSenderInsights] = useState<SenderInsight[]>([]);
   const [generatedClusters, setGeneratedClusters] = useState<EmailCluster[]>([]);
   const [generatedDrafts, setGeneratedDrafts] = useState<EmailDraft[]>([]);
+  const [selectedCluster, setSelectedCluster] = useState<EmailCluster | null>(null);
   const { toast } = useToast();
   
   // Use React Query with optimizations
@@ -245,6 +246,93 @@ export function AISidebar({ emails }: { emails: any[] }) {
     }
   };
   
+  // Function to handle cluster click and highlight connections
+  const handleClusterClick = (cluster: EmailCluster) => {
+    // Toggle selection - deselect if already selected
+    if (selectedCluster?.id === cluster.id) {
+      setSelectedCluster(null);
+      // Remove all connection lines
+      const connections = document.querySelectorAll('.cluster-connection');
+      connections.forEach(conn => conn.remove());
+    } else {
+      setSelectedCluster(cluster);
+      
+      // Small delay to ensure DOM is ready
+      setTimeout(() => {
+        // Clear any existing connections
+        const connections = document.querySelectorAll('.cluster-connection');
+        connections.forEach(conn => conn.remove());
+        
+        // Draw connections from cluster to related emails
+        cluster.emailIds.forEach(emailId => {
+          const emailElement = document.querySelector(`[data-email-id="${emailId}"]`);
+          const clusterElement = document.querySelector(`[data-cluster-id="${cluster.id}"]`);
+          
+          if (emailElement && clusterElement) {
+            drawConnection(clusterElement, emailElement);
+          }
+        });
+        
+        // Scroll related emails into view if not visible
+        const firstEmail = document.querySelector(`[data-email-id="${cluster.emailIds[0]}"]`);
+        if (firstEmail) {
+          firstEmail.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+        
+        // Show toast notification
+        toast({
+          title: "Cluster selected",
+          description: `Showing ${cluster.emailIds.length} emails related to "${cluster.title}"`,
+        });
+      }, 100);
+    }
+  };
+  
+  // Draw SVG connection line between two elements
+  const drawConnection = (from: Element, to: Element) => {
+    // Get positions
+    const fromRect = from.getBoundingClientRect();
+    const toRect = to.getBoundingClientRect();
+    
+    // Calculate line points
+    const fromX = fromRect.right;
+    const fromY = fromRect.top + fromRect.height / 2;
+    const toX = toRect.left;
+    const toY = toRect.top + toRect.height / 2;
+    
+    // Create SVG element
+    const svgNS = "http://www.w3.org/2000/svg";
+    const svg = document.createElementNS(svgNS, "svg");
+    svg.classList.add('cluster-connection');
+    svg.style.position = 'fixed';
+    svg.style.top = '0';
+    svg.style.left = '0';
+    svg.style.width = '100%';
+    svg.style.height = '100%';
+    svg.style.pointerEvents = 'none';
+    svg.style.zIndex = '50';
+    
+    // Create the path
+    const path = document.createElementNS(svgNS, "path");
+    const dx = toX - fromX;
+    const bezierX = fromX + dx * 0.6; // Create a curved line
+    
+    path.setAttribute('d', `M${fromX},${fromY} C${bezierX},${fromY} ${bezierX},${toY} ${toX},${toY}`);
+    path.style.fill = 'none';
+    path.style.stroke = '#3b82f6'; // Blue color
+    path.style.strokeWidth = '2';
+    path.style.strokeDasharray = '4 2'; // Dashed line
+    path.style.opacity = '0.8';
+    
+    // Animation for line appearance
+    path.innerHTML = `
+      <animate attributeName="stroke-dashoffset" from="60" to="0" dur="1.5s" repeatCount="indefinite" />
+    `;
+    
+    svg.appendChild(path);
+    document.body.appendChild(svg);
+  };
+
   // Function to display sentiment with icon
   const renderSentiment = (sentiment: 'improving' | 'declining' | 'stable') => {
     switch (sentiment) {
@@ -301,7 +389,7 @@ export function AISidebar({ emails }: { emails: any[] }) {
           
           {(isGenerating || dailyDigestQuery.isPending) ? (
             <Card className="p-4">
-              <h3 className="text-base font-medium mb-2">Today's Email Summary</h3>
+              <h3 className="text-base font-medium mb-2">Last 24 Hours Email Summary</h3>
               <Skeleton className="h-4 w-3/4 mb-2" />
               <Skeleton className="h-4 w-1/2 mb-2" />
               <Skeleton className="h-4 w-5/6 mb-2" />
@@ -412,7 +500,12 @@ export function AISidebar({ emails }: { emails: any[] }) {
           ) : generatedClusters.length > 0 ? (
             <div className="space-y-6">
               {generatedClusters.map((cluster) => (
-                <Card key={cluster.id} className="overflow-hidden bg-gradient-to-br from-gray-50 to-white border-gray-200">
+                <Card 
+                  key={cluster.id} 
+                  className={`overflow-hidden bg-gradient-to-br from-gray-50 to-white border-gray-200 cursor-pointer transition-all hover:shadow-md ${selectedCluster?.id === cluster.id ? 'ring-2 ring-blue-500' : ''}`}
+                  onClick={() => handleClusterClick(cluster)}
+                  data-cluster-id={cluster.id}
+                >
                   <div className="p-4 border-b border-gray-100">
                     <div className="flex justify-between items-start mb-1">
                       <h4 className="text-lg font-semibold text-blue-700">{cluster.title}</h4>

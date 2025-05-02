@@ -109,6 +109,7 @@ export function EmailItem({ email, isSelected, onSelect, onClick }: EmailItemPro
         !email.isRead ? 'font-medium' : ''
       }`}
       onClick={handleEmailClick}
+      data-email-id={email.id}
     >
       <div className="px-4 py-3 flex items-start">
         <div className="flex items-center mr-4">
