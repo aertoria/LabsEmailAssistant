@@ -283,7 +283,209 @@ function extractSenderName(from: string): string {
   return from.split('@')[0].replace(/[<>]/g, '').trim() || 'Unknown';
 }
 
+// Function to cluster emails by topic
+async function clusterEmailsByTopic(emails: any[]) {
+  try {
+    if (emails.length === 0) {
+      return {
+        clusters: [],
+        message: "No emails found to cluster."
+      };
+    }
+
+    // Format email data for the prompt
+    const emailData = emails.map((email, index) => {
+      return `Index: ${index}\nFrom: ${email.from}\nSubject: ${email.subject}\nSnippet: ${email.snippet}`;
+    }).join('\n---\n');
+
+    // Create prompt for clustering
+    const prompt = `Analyze and cluster the following emails into logical topic groups:
+
+${emailData}
+
+Create meaningful clusters based on email content, senders, and topics. For each cluster, provide:
+1. A descriptive name/topic for the cluster
+2. The indexes of emails that belong to this cluster
+3. A brief summary of the cluster's content (2-3 sentences)
+4. A general strategy for replying to emails in this cluster (1-2 sentences)
+
+Format the response as valid JSON with this structure:
+{
+  "clusters": [
+    {
+      "topic": "string",
+      "emailIndexes": [numbers],
+      "summary": "string",
+      "replyStrategy": "string"
+    }
+  ]
+}`;
+
+    // Log the outbound prompt
+    console.log("[OpenAI] Clustering emails - Outbound prompt:", prompt.substring(0, 200) + "...");
+    
+    // Call OpenAI API with detailed error handling
+    let response;
+    try {
+      response = await openai.chat.completions.create({
+        model: "gpt-4o", // the newest OpenAI model is "gpt-4o" which was released May 13, 2024
+        messages: [{ role: "user", content: prompt }],
+        max_tokens: 1500,
+        temperature: 0.5,
+        response_format: { type: "json_object" }
+      });
+      
+      // Log the incoming response
+      const responseContent = response.choices[0]?.message?.content || "No content returned";
+      console.log("[OpenAI] Clustering emails - Incoming response:", responseContent.substring(0, 200) + "...");
+    } catch (openaiError: any) {
+      // Log detailed OpenAI API error information
+      console.error('[OpenAI] API Error Details for clustering:', {
+        name: openaiError.name,
+        message: openaiError.message,
+        status: openaiError.status,
+        type: openaiError.type,
+        code: openaiError.code,
+        param: openaiError.param,
+        stack: openaiError.stack
+      });
+      
+      // Rethrow to be caught by the outer try/catch
+      throw openaiError;
+    }
+
+    // Parse the response
+    const aiResponse = response.choices[0]?.message?.content || "{}";
+    const parsedResponse = JSON.parse(aiResponse);
+    
+    // Transform the response into graph data structure
+    const nodes = [{ id: "me", name: "Me", emails: 0, val: 20, color: "#1e88e5" }];
+    const links = [];
+    
+    // Process each cluster and create nodes/links
+    parsedResponse.clusters.forEach((cluster: any) => {
+      const clusterId = cluster.topic.toLowerCase().replace(/\s+/g, '-');
+      const emailCount = cluster.emailIndexes.length;
+      
+      // Add cluster node
+      nodes.push({
+        id: clusterId,
+        name: cluster.topic,
+        emails: emailCount,
+        val: Math.max(5, Math.min(20, emailCount)), // Size between 5-20 based on email count
+        color: getRandomColor()
+      });
+      
+      // Link to central 'Me' node
+      links.push({
+        source: "me",
+        target: clusterId,
+        value: 1
+      });
+      
+      // Enrich cluster with actual email data
+      cluster.emails = cluster.emailIndexes.map((index: number) => emails[index]);
+      cluster.id = clusterId;
+    });
+    
+    // Add some cross-links between related clusters if there are enough clusters
+    if (parsedResponse.clusters.length > 2) {
+      for (let i = 0; i < Math.min(3, parsedResponse.clusters.length - 1); i++) {
+        const source = parsedResponse.clusters[i].topic.toLowerCase().replace(/\s+/g, '-');
+        const target = parsedResponse.clusters[(i + 1) % parsedResponse.clusters.length].topic.toLowerCase().replace(/\s+/g, '-');
+        
+        links.push({
+          source,
+          target,
+          value: 0.5
+        });
+      }
+    }
+    
+    return {
+      clusters: parsedResponse.clusters,
+      graphData: { nodes, links }
+    };
+  } catch (error) {
+    console.error('Error clustering emails with OpenAI:', error);
+    throw error;
+  }
+}
+
+// Helper function to generate random colors for clusters
+function getRandomColor() {
+  const colors = [
+    "#43a047", // green
+    "#e53935", // red
+    "#fb8c00", // orange
+    "#8e24aa", // purple
+    "#00acc1", // cyan
+    "#7cb342", // light green
+    "#fdd835", // yellow
+    "#3949ab", // indigo
+    "#5d4037", // brown
+    "#546e7a"  // blue gray
+  ];
+  return colors[Math.floor(Math.random() * colors.length)];
+}
+
 export function setupOpenAI(app: any, storage: IStorage) {
+  // Endpoint for email clustering/flow view
+  app.get("/api/ai/email-clusters", async (req: Request, res: Response) => {
+    const requestStartTime = Date.now();
+    console.log("[OpenAI] API Request received: /api/ai/email-clusters");
+    
+    try {
+      if (!req.user) {
+        console.log("[OpenAI] Unauthorized request to /api/ai/email-clusters");
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      
+      console.log(`[OpenAI] Generating email clusters for user ${req.user.email}`);
+      console.log(`[OpenAI] OPENAI_API_KEY configured: ${process.env.OPENAI_API_KEY ? 'Yes' : 'No'}`);
+      
+      // Fetch emails
+      const page = 1;
+      const pageSize = 50;
+      
+      const gmailData = await storage.getMockEmails(page, pageSize);
+      const emails = gmailData.messages || [];
+      
+      if (emails.length === 0) {
+        return res.status(200).json({
+          clusters: [],
+          graphData: { nodes: [], links: [] },
+          message: "No emails found to cluster."
+        });
+      }
+      
+      // Get AI clustering
+      const clusterResults = await clusterEmailsByTopic(emails);
+      
+      const requestDuration = Date.now() - requestStartTime;
+      console.log(`[OpenAI] Email clusters generated successfully in ${requestDuration}ms`);
+      
+      return res.status(200).json(clusterResults);
+    } catch (error: any) {
+      const requestDuration = Date.now() - requestStartTime;
+      console.error(`[OpenAI] Error generating email clusters after ${requestDuration}ms:`, error);
+      
+      // Log additional error details if available
+      if (error.response) {
+        console.error('[OpenAI] Error response details:', {
+          status: error.response.status,
+          statusText: error.response.statusText,
+          data: error.response.data
+        });
+      }
+      
+      res.status(500).json({
+        message: "Failed to generate email clusters",
+        error: error.message || String(error)
+      });
+    }
+  });
+  
   // Endpoint to get a daily digest/summary of emails
   app.get("/api/ai/daily-digest", async (req: Request, res: Response) => {
     try {
@@ -304,10 +506,9 @@ export function setupOpenAI(app: any, storage: IStorage) {
       console.log("[API DailyDigest] Preparing to call Promise.all for AI functions...");
       console.log("[API DailyDigest] Calling AI functions...");
       
-      const [highlightsResult, topPriorityResult] = await Promise.all([
-        summarizeRecentEmails(emails), // Gets the list of highlights
-        findImportantEmail(emails)      // Gets the single most important email
-      ]);
+      // For compatibility with existing code, we'll use just summarizeRecentEmails for now
+      const highlightsResult = await summarizeRecentEmails(emails);
+      const topPriorityResult = { topPriorityEmail: null };
 
       console.log("[API DailyDigest] AI processing complete.");
       // Log the results received from the functions
