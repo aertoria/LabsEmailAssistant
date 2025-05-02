@@ -235,12 +235,19 @@ export function EmailList({ onEmailsLoaded }: { onEmailsLoaded?: (emails: any[])
     };
   }, []);
   
-  // Sort emails to bring cluster-related emails to the top
+  // Filter out OpenAI emails and sort to bring cluster-related emails to the top
   const sortedEmails = useMemo(() => {
-    if (!clusterEmailIds.length) return emails;
+    // First, filter out any emails from OpenAI
+    const filteredEmails = emails.filter(email => {
+      // Check if the email is from OpenAI
+      return !email.from.toLowerCase().includes('@openai.com');
+    });
     
-    // Create a copy to avoid mutating the original
-    return [...emails].sort((a, b) => {
+    // If not in cluster mode, just return the filtered emails
+    if (!clusterEmailIds.length) return filteredEmails;
+    
+    // Create a copy to avoid mutating the original and sort by cluster relevance
+    return [...filteredEmails].sort((a, b) => {
       const aInCluster = clusterEmailIds.includes(a.id);
       const bInCluster = clusterEmailIds.includes(b.id);
       
