@@ -490,7 +490,7 @@ export function AISidebar({ emails }: { emails: any[] }) {
         AI Email Assistant
       </h2>
       
-      <Tabs defaultValue="daily" className="flex-grow flex flex-col" onValueChange={(value) => setActiveTab(value as any)}>
+      <Tabs value={activeTab} className="flex-grow flex flex-col" onValueChange={(value) => setActiveTab(value as any)}>
         <TabsList className="grid grid-cols-4 mb-4">
           <TabsTrigger value="daily">Daily</TabsTrigger>
           <TabsTrigger value="clusters">Clusters</TabsTrigger>
@@ -626,7 +626,12 @@ export function AISidebar({ emails }: { emails: any[] }) {
               {generatedClusters.map((cluster) => (
                 <Card 
                   key={cluster.id} 
-                  className={`overflow-hidden bg-gradient-to-br from-gray-50 to-white border-gray-200 cursor-pointer transition-all hover:shadow-md ${selectedCluster?.id === cluster.id ? 'ring-2 ring-blue-500' : ''}`}
+                  className={`overflow-hidden bg-gradient-to-br from-gray-50 to-white border-gray-200 cursor-pointer transition-all hover:shadow-md hover:border-blue-300 active:bg-blue-50 ${selectedCluster?.id === cluster.id ? 'ring-2 ring-blue-500' : ''}`}
+                  role="button"
+                  aria-label={`View details for ${cluster.title} cluster`}
+                  tabIndex={0}
+                  // Also handle keyboard navigation
+                  onKeyDown={(e) => e.key === 'Enter' && handleClusterClick(cluster)}
                   onClick={() => handleClusterClick(cluster)}
                   data-cluster-id={cluster.id}
                 >
@@ -653,11 +658,27 @@ export function AISidebar({ emails }: { emails: any[] }) {
                   </div>
                   
                   <div className="flex divide-x divide-gray-200 border-t border-gray-200">
-                    <Button variant="ghost" className="flex-1 rounded-none text-blue-600 py-3 h-auto">
+                    <Button 
+                      variant="ghost" 
+                      className="flex-1 rounded-none text-blue-600 py-3 h-auto"
+                      onClick={(e) => {
+                        e.stopPropagation(); // Prevent card click event
+                        // Summarize functionality can be added here
+                        console.log('Summarize clicked for cluster:', cluster.id);
+                      }}
+                    >
                       <FileText size={16} className="mr-2" />
                       Summarize Cluster
                     </Button>
-                    <Button variant="ghost" className="flex-1 rounded-none text-green-600 py-3 h-auto">
+                    <Button 
+                      variant="ghost" 
+                      className="flex-1 rounded-none text-green-600 py-3 h-auto"
+                      onClick={(e) => {
+                        e.stopPropagation(); // Prevent card click event
+                        // Draft functionality can be added here
+                        console.log('Draft clicked for cluster:', cluster.id);
+                      }}
+                    >
                       <PenLine size={16} className="mr-2" />
                       Draft from Cluster
                     </Button>
