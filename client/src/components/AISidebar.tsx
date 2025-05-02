@@ -483,7 +483,7 @@ export function AISidebar({ emails }: { emails: any[] }) {
   );
   
   return (
-    <div className="w-96 bg-white border-l border-gray-200 flex-shrink-0 overflow-y-auto p-4">
+    <div className="w-[35rem] bg-white border-l border-gray-200 flex-shrink-0 overflow-y-auto p-4">
       <h2 className="text-xl font-semibold mb-4 flex items-center">
         <MessageCircle size={20} className="mr-2 text-blue-500" />
         AI Email Assistant
@@ -597,7 +597,7 @@ export function AISidebar({ emails }: { emails: any[] }) {
           {/* Two-column layout for clusters with detail panel */}
           <div className="flex flex-row">
             {/* Left column: List of clusters */}
-            <div className={`${showClusterDetail ? 'w-1/2 pr-3' : 'w-full'} transition-all duration-300 ease-in-out`}>
+            <div className={`${showClusterDetail ? 'w-3/5 pr-4' : 'w-full'} transition-all duration-300 ease-in-out`}>
               <div className="flex justify-between items-center mb-2">
                 <h3 className="text-base font-medium">Email Topic Clusters</h3>
                 {!generatedClusters.length && renderGenerateButton('clusters')}
@@ -658,9 +658,9 @@ export function AISidebar({ emails }: { emails: any[] }) {
               )}
             </div>
             
-            {/* Right column: Cluster detail panel */}
+            {/* Right column: Highlighted Email panel */}
             {showClusterDetail && selectedCluster && (
-              <div className="w-1/2 pl-3 border-l border-gray-200 cluster-detail-panel">
+              <div className="w-2/5 pl-4 border-l border-gray-200 cluster-detail-panel">
                 <div className="flex justify-between items-center mb-4">
                   <div className="flex items-center">
                     <Button 
@@ -677,60 +677,68 @@ export function AISidebar({ emails }: { emails: any[] }) {
                       </svg>
                       Close
                     </Button>
-                    <h3 className="text-lg font-medium text-blue-700">{selectedCluster.title}</h3>
+                    <h3 className="text-lg font-medium text-blue-700">Highlighted Email</h3>
                   </div>
                 </div>
-
-                <Card className="p-4 mb-4 cluster-summary-card">
-                  <h4 className="text-sm font-semibold mb-2">Cluster Summary</h4>
-                  <p className="text-sm text-gray-700">{selectedCluster.summary}</p>
-                  
-                  <div className="flex mt-4 pt-4 border-t border-blue-100 justify-between">
-                    <Button size="sm" variant="outline" className="text-blue-600">
-                      <FileText size={14} className="mr-1" /> Summarize All
-                    </Button>
-                    <Button size="sm" variant="outline" className="text-green-600">
-                      <PenLine size={14} className="mr-1" /> Draft Response
-                    </Button>
-                  </div>
-                </Card>
-
-                <div className="space-y-3">
-                  <div className="flex items-center">
-                    <h4 className="text-sm font-semibold">Related Emails</h4>
-                    <span className="ml-2 px-2 py-0.5 text-xs bg-blue-100 text-blue-800 rounded-full">
-                      {selectedCluster.emailIds.length} emails
-                    </span>
-                  </div>
-                  {selectedCluster.emailIds.map((emailId, index) => {
-                    // Find the email based on ID from our mocked data
-                    const emailIndex = Number(emailId.replace('email-', '')) - 1;
-                    const email = emails[emailIndex >= 0 && emailIndex < emails.length ? emailIndex : 0];
-                    
-                    return (
-                      <Card key={emailId} className="overflow-hidden cluster-detail-card email-list-animation" style={{animationDelay: `${index * 0.05}s`}}>
-                        <div className="p-3">
-                          <div className="flex justify-between">
-                            <h5 className="font-medium text-sm truncate">{email?.subject || `Thread ${index + 1}`}</h5>
-                            <span className="text-xs text-gray-500">{email?.receivedAt || 'Today'}</span>
+                
+                {/* Only show the most important email from this cluster */}
+                {selectedCluster.emailIds.length > 0 && (
+                  <div className="space-y-4">
+                    {(() => {
+                      // Just get the first email to highlight
+                      const emailId = selectedCluster.emailIds[0];
+                      const emailIndex = Number(emailId.replace('email-', '')) - 1;
+                      const email = emails[emailIndex >= 0 && emailIndex < emails.length ? emailIndex : 0];
+                      
+                      return (
+                        <Card key={emailId} className="overflow-hidden border-2 border-blue-400 shadow-lg">
+                          <div className="bg-blue-50 p-4 border-b border-blue-100">
+                            <div className="flex justify-between items-start">
+                              <h4 className="text-lg font-semibold text-blue-800">{email?.subject || selectedCluster.title}</h4>
+                              <Badge className="bg-blue-100 text-blue-800 hover:bg-blue-200">
+                                Important
+                              </Badge>
+                            </div>
+                            <div className="text-sm text-gray-600 mt-1 mb-2">
+                              From: <span className="font-medium">{email?.from || 'sender@example.com'}</span>
+                            </div>
+                            <div className="text-sm text-gray-600 mb-2">
+                              Received: <span>{email?.receivedAt || 'Today'}</span>
+                            </div>
                           </div>
-                          <div className="text-xs text-gray-500 mt-1 mb-1">{email?.from || 'sender@example.com'}</div>
-                          <p className="text-xs text-gray-700">
-                            {email?.snippet || selectedCluster.preview[index % selectedCluster.preview.length] || 'Email content preview...'}
-                          </p>
-                        </div>
-                        <div className="bg-gray-50 p-2 border-t flex justify-end gap-2">
-                          <Button size="sm" variant="outline" className="h-7 text-xs">
-                            <FileText size={12} className="mr-1" /> View
-                          </Button>
-                          <Button size="sm" variant="outline" className="h-7 text-xs text-green-600">
-                            <PenLine size={12} className="mr-1" /> Reply
-                          </Button>
-                        </div>
-                      </Card>
-                    );
-                  })}
-                </div>
+                          
+                          <div className="p-4">
+                            <div className="mb-6">
+                              <h5 className="text-sm font-semibold text-gray-500 mb-2">EMAIL CONTENT</h5>
+                              <p className="text-md text-gray-700 whitespace-pre-line">
+                                {email?.snippet || selectedCluster.preview[0] || 'Email content preview...'}
+                              </p>
+                            </div>
+                            
+                            <div className="mb-4 pb-4 border-b border-gray-100">
+                              <h5 className="text-sm font-semibold text-gray-500 mb-2">AI ANALYSIS</h5>
+                              <p className="text-sm text-gray-700">
+                                This email appears to be an important communication regarding {selectedCluster.title}. 
+                                It may require your attention based on the content and context of the discussion.
+                              </p>
+                            </div>
+                            
+                            <div className="flex justify-between">
+                              <Button className="flex items-center" size="sm" variant="outline">
+                                <FileText size={16} className="mr-2" />
+                                View Full Email
+                              </Button>
+                              <Button className="flex items-center" size="sm" variant="default">
+                                <PenLine size={16} className="mr-2" />
+                                Draft Response
+                              </Button>
+                            </div>
+                          </div>
+                        </Card>
+                      );
+                    })()} 
+                  </div>
+                )}
               </div>
             )}
           </div>
