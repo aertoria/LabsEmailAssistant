@@ -1,12 +1,13 @@
-// Type definitions for global window object
+// Global declarations for enhanced types
+
 interface Window {
-  google?: {
-    accounts: {
-      id: {
-        initialize: (config: any) => void;
-        prompt: (callback: any) => void;
-        renderButton: (element: HTMLElement, config: any) => void;
-      }
-    }
-  }
+  _clusterResizeHandler?: () => void;
+}
+
+interface SVGSVGElement {
+  _updateFn?: () => void;
+}
+
+interface Element {
+  _updateFn?: () => void;
 }

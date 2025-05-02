@@ -267,9 +267,9 @@ export function AISidebar({ emails }: { emails: any[] }) {
       });
 
       // Remove resize handler
-      if ((window as any)._clusterResizeHandler) {
-        window.removeEventListener('resize', (window as any)._clusterResizeHandler);
-        (window as any)._clusterResizeHandler = null;
+      if (window._clusterResizeHandler) {
+        window.removeEventListener('resize', window._clusterResizeHandler);
+        window._clusterResizeHandler = null;
       }
     } else {
       setSelectedCluster(cluster);
