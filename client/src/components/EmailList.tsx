@@ -495,13 +495,32 @@ export function EmailList({ onEmailsLoaded }: { onEmailsLoaded?: (emails: any[])
               </div>
             )}
             
-            {emails.map((email: any) => (
+            {/* Display cluster related info if active */}
+            {activeClusterId && clusterEmailIds.length > 0 && (
+              <div className="p-3 bg-blue-100 text-blue-800 font-medium flex items-center justify-between">
+                <div>
+                  <span className="text-blue-900">Showing {clusterEmailIds.length} emails from selected cluster</span>
+                </div>
+                <button 
+                  className="text-xs px-2 py-1 bg-white text-blue-600 rounded border border-blue-300 hover:bg-blue-50"
+                  onClick={() => {
+                    // Reset cluster selection
+                    window.dispatchEvent(new CustomEvent('cluster-deselected'));
+                  }}
+                >
+                  Clear Selection
+                </button>
+              </div>
+            )}
+            
+            {sortedEmails.map((email: any) => (
               <EmailItem 
                 key={email.id} 
                 email={email} 
                 isSelected={selectedEmails.includes(email.id)}
                 onSelect={() => toggleEmailSelection(email.id)}
                 onClick={() => handleEmailClick(email.id)}
+                isInCluster={clusterEmailIds.includes(email.id)}
               />
             ))}
           </div>
