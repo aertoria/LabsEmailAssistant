@@ -484,7 +484,7 @@ export function AISidebar({ emails }: { emails: any[] }) {
   );
   
   return (
-    <div className="w-96 bg-white border-l border-gray-200 flex-shrink-0 overflow-y-auto p-4">
+    <div className="w-[400px] bg-white border-l border-gray-200 flex-shrink-0 overflow-y-auto p-4">
       <h2 className="text-xl font-semibold mb-4 flex items-center">
         <MessageCircle size={20} className="mr-2 text-blue-500" />
         AI Email Assistant
