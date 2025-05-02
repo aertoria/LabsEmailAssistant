@@ -16,6 +16,9 @@ interface ClusterNode {
   emails: number;
   val: number; // Size based on email count
   color?: string;
+  activeThreads?: number;
+  topicSample?: string;
+  senders?: string;
 }
 
 interface ClusterLink {
@@ -60,22 +63,65 @@ export function FlowView() {
     const dummyData: ClusterData = {
       nodes: [
         { id: "me", name: "Me", emails: 0, val: 20, color: "#1e88e5" },
-        { id: "work", name: "Work", emails: 12, val: 12, color: "#43a047" },
-        { id: "personal", name: "Personal", emails: 8, val: 8, color: "#e53935" },
-        { id: "travel", name: "Travel", emails: 5, val: 5, color: "#fb8c00" },
-        { id: "finance", name: "Finance", emails: 7, val: 7, color: "#8e24aa" },
-        { id: "social", name: "Social", emails: 9, val: 9, color: "#00acc1" },
-        { id: "updates", name: "Updates", emails: 15, val: 15, color: "#7cb342" },
+        { 
+          id: "project-phoenix", 
+          name: "Project Phoenix - Core Dev", 
+          emails: 12, 
+          val: 12, 
+          color: "#43a047",
+          activeThreads: 7,
+          topicSample: "User Story #1023: API endpoint\nBug #988: Login page redirect issue",
+          senders: "dev-team@company.com, alex@company.com"
+        },
+        { 
+          id: "marketing", 
+          name: "Q3 Marketing Campaign", 
+          emails: 8, 
+          val: 8, 
+          color: "#9c27b0",
+          activeThreads: 12, 
+          topicSample: "Planning: Social Media Calendar\nAssets: Request for new banner designs",
+          senders: "marketing@company.com, design@company.com"
+        },
+        { 
+          id: "mobile", 
+          name: "User Feedback - Mobile v2.1", 
+          emails: 10, 
+          val: 10, 
+          color: "#e53935",
+          activeThreads: 25,
+          topicSample: "Feature Request: Dark mode for iOS\nIssue: App crashing on older Android",
+          senders: "user-support@company.com, mobile-team@company.com"
+        },
+        { 
+          id: "finance", 
+          name: "Finance Reports", 
+          emails: 7, 
+          val: 7, 
+          color: "#fb8c00",
+          activeThreads: 5,
+          topicSample: "Q2 Budget Review\nExpense Reports Due Friday",
+          senders: "finance@company.com, accounting@company.com"
+        },
+        { 
+          id: "hr", 
+          name: "HR Notifications", 
+          emails: 9, 
+          val: 9, 
+          color: "#00acc1",
+          activeThreads: 8,
+          topicSample: "New Benefits Enrollment\nOffice Closure Announcement",
+          senders: "hr@company.com, benefits@company.com"
+        },
       ],
       links: [
-        { source: "me", target: "work", value: 1 },
-        { source: "me", target: "personal", value: 1 },
-        { source: "me", target: "travel", value: 1 },
+        { source: "me", target: "project-phoenix", value: 1 },
+        { source: "me", target: "marketing", value: 1 },
+        { source: "me", target: "mobile", value: 1 },
         { source: "me", target: "finance", value: 1 },
-        { source: "me", target: "social", value: 1 },
-        { source: "me", target: "updates", value: 1 },
-        { source: "work", target: "updates", value: 0.5 },
-        { source: "finance", target: "personal", value: 0.3 },
+        { source: "me", target: "hr", value: 1 },
+        { source: "project-phoenix", target: "mobile", value: 0.5 },
+        { source: "marketing", target: "finance", value: 0.3 },
       ],
     };
 
@@ -190,6 +236,9 @@ export function FlowView() {
               emails: cluster.emails?.length || 0,
               val: Math.max(5, Math.min(20, (cluster.emails?.length || 0))), // Size between 5-20 based on email count
               color: cluster.color || getRandomColor(),
+              activeThreads: cluster.activeThreads || (cluster.emails?.length || 0),
+              topicSample: cluster.topicSample || '',
+              senders: cluster.senderInfo || ''
             };
             
             nodes.push(clusterNode);
@@ -249,7 +298,7 @@ export function FlowView() {
           </Button>
         </div>
         
-        <div className="flex-1 bg-gray-50" style={{ minHeight: "500px" }}>
+        <div className="flex-1 bg-gray-50" style={{ minHeight: "700px" }}>
           {isLoading ? (
             <div className="h-full flex items-center justify-center">
               <div className="text-center">
@@ -262,22 +311,109 @@ export function FlowView() {
               <ForceGraph2D
                 ref={graphRef}
                 graphData={graphData}
-                nodeLabel="name"
+                nodeLabel={(node) => `${node.name}\n${node.activeThreads ? node.activeThreads + ' Active Threads' : ''}`}
                 nodeAutoColorBy="group"
                 nodeVal="val"
                 nodeColor={(node: any) => node.color}
-                linkWidth={1}
+                linkWidth={1.5}
                 linkDirectionalParticles={2}
                 linkDirectionalParticleWidth={1.5}
+                cooldownTicks={100}
+                d3AlphaDecay={0.02}
+                d3VelocityDecay={0.1}
+                d3Force="charge"
+                backgroundColor="#f8fafc"
+                width={800}
+                height={700}
                 onNodeClick={handleNodeClick}
                 nodeCanvasObject={(node: any, ctx, globalScale) => {
-                  const label = node.name;
-                  const fontSize = 12/globalScale;
-                  ctx.font = `${fontSize}px Sans-Serif`;
+                  // Skip rendering if too small
+                  if (globalScale < 0.4) return;
+                  
+                  // Position and size calculations
+                  const fontSize = Math.max(12, 16 / globalScale);
+                  const nodeSize = Math.max(15, node.val * globalScale * 1.5); // Make nodes bigger
+                  const borderWidth = 2 / globalScale;
+                  
+                  // Draw node background
+                  ctx.beginPath();
+                  ctx.arc(node.x, node.y, nodeSize, 0, 2 * Math.PI);
+                  ctx.fillStyle = node.color || '#1e88e5';
+                  ctx.fill();
+                  
+                  // Draw border
+                  ctx.strokeStyle = node.id === 'me' ? '#ffffff' : '#ffffff44';
+                  ctx.lineWidth = borderWidth;
+                  ctx.stroke();
+                  
+                  // Fill text background for readability
+                  if (node.id !== 'me') {
+                    const topicLines = node.topicSample ? node.topicSample.split('\n') : [];
+                    const lineCount = 2 + topicLines.length + 1; // title + threads + topics + senders
+                    const textBoxHeight = lineCount * fontSize * 1.2;
+                    
+                    // Draw semi-transparent background for text
+                    ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+                    ctx.fillRect(
+                      node.x - nodeSize * 1.5, 
+                      node.y + nodeSize + borderWidth, 
+                      nodeSize * 3, 
+                      textBoxHeight
+                    );
+                  }
+                  
+                  // Configure text properties
                   ctx.textAlign = 'center';
-                  ctx.textBaseline = 'middle';
-                  ctx.fillStyle = node.id === 'me' ? '#ffffff' : '#000000';
-                  ctx.fillText(label, node.x, node.y);
+                  ctx.textBaseline = 'top';
+                  ctx.font = `bold ${fontSize}px Sans-Serif`;
+                  
+                  // Draw node title
+                  ctx.fillStyle = node.id === 'me' ? '#FFFFFF' : '#FFFFFF';
+                  ctx.fillText(
+                    node.name,
+                    node.x,
+                    node.y + nodeSize + borderWidth + 2
+                  );
+                  
+                  // Draw active threads count if available
+                  if (node.activeThreads) {
+                    ctx.font = `${fontSize * 0.8}px Sans-Serif`;
+                    ctx.fillStyle = node.id === 'me' ? '#FFFFFF' : '#FFC107'; // Yellow for threads
+                    ctx.fillText(
+                      `${node.activeThreads} Active Threads`,
+                      node.x,
+                      node.y + nodeSize + borderWidth + fontSize * 1.4
+                    );
+                  }
+                  
+                  // Draw topic samples if available
+                  if (node.topicSample && node.id !== 'me') {
+                    ctx.font = `${fontSize * 0.75}px Sans-Serif`;
+                    ctx.fillStyle = '#FFFFFF';
+                    
+                    const topics = node.topicSample.split('\n');
+                    topics.forEach((topic: string, i: number) => {
+                      ctx.fillText(
+                        topic,
+                        node.x,
+                        node.y + nodeSize + borderWidth + fontSize * (2.2 + i * 0.9)
+                      );
+                    });
+                  }
+                  
+                  // Add sender info if available
+                  if (node.senders && node.id !== 'me') {
+                    ctx.font = `italic ${fontSize * 0.7}px Sans-Serif`;
+                    ctx.fillStyle = '#AAAAAA';
+                    const senderY = node.y + nodeSize + borderWidth + fontSize * 
+                      (2.2 + (node.topicSample ? node.topicSample.split('\n').length * 0.9 : 0) + 0.9);
+                    
+                    ctx.fillText(
+                      node.senders,
+                      node.x,
+                      senderY
+                    );
+                  }
                 }}
               />
             </div>
