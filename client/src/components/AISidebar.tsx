@@ -78,6 +78,7 @@ export function AISidebar({ emails }: { emails: any[] }) {
   const [generatedClusters, setGeneratedClusters] = useState<EmailCluster[]>([]);
   const [generatedDrafts, setGeneratedDrafts] = useState<EmailDraft[]>([]);
   const [selectedCluster, setSelectedCluster] = useState<EmailCluster | null>(null);
+  const [showClusterDetail, setShowClusterDetail] = useState(false);
   const { toast } = useToast();
   
   // Use React Query with optimizations
@@ -246,11 +247,12 @@ export function AISidebar({ emails }: { emails: any[] }) {
     }
   };
   
-  // Function to handle cluster click and highlight connections
+  // Function to handle cluster click and open detailed view
   const handleClusterClick = (cluster: EmailCluster) => {
-    // Toggle selection - deselect if already selected
+    // Toggle selection and detail view
     if (selectedCluster?.id === cluster.id) {
       setSelectedCluster(null);
+      setShowClusterDetail(false);
       // Remove all connection lines and event listeners
       const connections = document.querySelectorAll('.cluster-connection');
       connections.forEach(conn => {
@@ -272,7 +274,13 @@ export function AISidebar({ emails }: { emails: any[] }) {
         window._clusterResizeHandler = undefined;
       }
     } else {
+      // Set the new selected cluster and open detail view
       setSelectedCluster(cluster);
+      setShowClusterDetail(true);
+      
+      // Switch to a custom tab that will show the cluster details
+      const newTabValue = `cluster-detail-${cluster.id}`;
+      setActiveTab(newTabValue);
       
       // Small delay to ensure DOM is ready
       setTimeout(() => {
@@ -488,6 +496,15 @@ export function AISidebar({ emails }: { emails: any[] }) {
           <TabsTrigger value="clusters">Clusters</TabsTrigger>
           <TabsTrigger value="senders">Senders</TabsTrigger>
           <TabsTrigger value="drafts">Drafts</TabsTrigger>
+          {/* This hidden trigger gets activated when a cluster is clicked */}
+          {selectedCluster && (
+            <TabsTrigger 
+              value={`cluster-detail-${selectedCluster.id}`} 
+              className="hidden"
+            >
+              {selectedCluster.title}
+            </TabsTrigger>
+          )}
         </TabsList>
         
         <TabsContent value="daily" className="space-y-4 flex-grow">
