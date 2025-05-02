@@ -251,9 +251,26 @@ export function AISidebar({ emails }: { emails: any[] }) {
     // Toggle selection - deselect if already selected
     if (selectedCluster?.id === cluster.id) {
       setSelectedCluster(null);
-      // Remove all connection lines
+      // Remove all connection lines and event listeners
       const connections = document.querySelectorAll('.cluster-connection');
-      connections.forEach(conn => conn.remove());
+      connections.forEach(conn => {
+        // Remove scroll event listener to prevent memory leaks
+        if (conn._updateFn) {
+          window.removeEventListener('scroll', conn._updateFn);
+        }
+        conn.remove();
+      });
+      
+      // Restore original styling of all email items
+      document.querySelectorAll('[data-email-id]').forEach(el => {
+        el.classList.remove('cluster-related-email');
+      });
+
+      // Remove resize handler
+      if ((window as any)._clusterResizeHandler) {
+        window.removeEventListener('resize', (window as any)._clusterResizeHandler);
+        (window as any)._clusterResizeHandler = null;
+      }
     } else {
       setSelectedCluster(cluster);
       
@@ -324,6 +341,25 @@ export function AISidebar({ emails }: { emails: any[] }) {
     path.style.strokeDasharray = '4 2'; // Dashed line
     path.style.opacity = '0.8';
     
+    // Create animated arrowhead
+    const marker = document.createElementNS(svgNS, "marker");
+    marker.setAttribute('id', 'arrowhead');
+    marker.setAttribute('markerWidth', '10');
+    marker.setAttribute('markerHeight', '7');
+    marker.setAttribute('refX', '9');
+    marker.setAttribute('refY', '3.5');
+    marker.setAttribute('orient', 'auto');
+    
+    const polygon = document.createElementNS(svgNS, "polygon");
+    polygon.setAttribute('points', '0 0, 10 3.5, 0 7');
+    polygon.style.fill = '#3b82f6';
+    
+    marker.appendChild(polygon);
+    svg.appendChild(marker);
+    
+    // Apply the marker to the path
+    path.setAttribute('marker-end', 'url(#arrowhead)');
+    
     // Animation for line appearance
     path.innerHTML = `
       <animate attributeName="stroke-dashoffset" from="60" to="0" dur="1.5s" repeatCount="indefinite" />
@@ -331,6 +367,30 @@ export function AISidebar({ emails }: { emails: any[] }) {
     
     svg.appendChild(path);
     document.body.appendChild(svg);
+    
+    // Add a listener to update connection position when scrolling
+    const updateConnection = () => {
+      const updatedFromRect = from.getBoundingClientRect();
+      const updatedToRect = to.getBoundingClientRect();
+      
+      const updatedFromX = updatedFromRect.right;
+      const updatedFromY = updatedFromRect.top + updatedFromRect.height / 2;
+      const updatedToX = updatedToRect.left;
+      const updatedToY = updatedToRect.top + updatedToRect.height / 2;
+      
+      const updatedDx = updatedToX - updatedFromX;
+      const updatedBezierX = updatedFromX + updatedDx * 0.6;
+      
+      path.setAttribute('d', `M${updatedFromX},${updatedFromY} C${updatedBezierX},${updatedFromY} ${updatedBezierX},${updatedToY} ${updatedToX},${updatedToY}`);
+    };
+    
+    window.addEventListener('scroll', updateConnection);
+    
+    // Store event listener reference for cleanup
+    svg.dataset.scrollListener = 'true';
+    svg._updateFn = updateConnection;
+    
+    return svg;
   };
 
   // Function to display sentiment with icon
