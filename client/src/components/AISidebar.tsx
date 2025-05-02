@@ -729,6 +729,78 @@ export function AISidebar({ emails }: { emails: any[] }) {
           )}
         </TabsContent>
         
+        {/* Dynamic TabsContent for Cluster Details - shown when a cluster is selected */}
+        {selectedCluster && (
+          <TabsContent value={`cluster-detail-${selectedCluster.id}`} className="space-y-4 flex-grow">
+            <div className="flex justify-between items-center mb-4">
+              <div className="flex items-center">
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  className="mr-2 back-button-transition" 
+                  onClick={() => {
+                    setActiveTab('clusters');
+                    setSelectedCluster(null);
+                    setShowClusterDetail(false);
+                  }}
+                >
+                  <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                  </svg>
+                  Back
+                </Button>
+                <h3 className="text-lg font-medium text-blue-700">{selectedCluster.title}</h3>
+              </div>
+              <Badge className="bg-blue-100 text-blue-800">
+                {selectedCluster.threadCount} {selectedCluster.threadCount === 1 ? 'Thread' : 'Threads'}
+              </Badge>
+            </div>
+
+            <Card className="p-5 mb-6 cluster-summary-card">
+              <h4 className="text-sm font-semibold mb-2">Cluster Summary</h4>
+              <p className="text-sm text-gray-700">{selectedCluster.summary}</p>
+            </Card>
+
+            <div className="space-y-4">
+              <div className="flex items-center">
+                <h4 className="text-sm font-semibold">Related Email Threads</h4>
+                <span className="ml-2 px-2 py-0.5 text-xs bg-blue-100 text-blue-800 rounded-full">
+                  {selectedCluster.emailIds.length} emails
+                </span>
+              </div>
+              {selectedCluster.emailIds.map((emailId, index) => {
+                // Find the email based on ID from our mocked data
+                // In a real implementation, you'd fetch email details from the server or use a more sophisticated data structure
+                const emailIndex = Number(emailId.replace('email-', '')) - 1;
+                const email = emails[emailIndex >= 0 && emailIndex < emails.length ? emailIndex : 0];
+                
+                return (
+                  <Card key={emailId} className="overflow-hidden cluster-detail-card email-list-animation" style={{animationDelay: `${index * 0.05}s`}}>
+                    <div className="p-4">
+                      <div className="flex justify-between">
+                        <h5 className="font-medium text-sm truncate">{email?.subject || `Thread ${index + 1}`}</h5>
+                        <span className="text-xs text-gray-500">{email?.receivedAt || 'Today'}</span>
+                      </div>
+                      <div className="text-xs text-gray-500 mt-1 mb-2">{email?.from || 'sender@example.com'}</div>
+                      <p className="text-sm text-gray-700">
+                        {email?.snippet || selectedCluster.preview[index % selectedCluster.preview.length] || 'Email content preview...'}
+                      </p>
+                    </div>
+                    <div className="bg-gray-50 p-3 border-t flex justify-end gap-2">
+                      <Button size="sm" variant="outline">
+                        <FileText size={14} className="mr-1" /> View Full Thread
+                      </Button>
+                      <Button size="sm" variant="outline" className="text-green-600">
+                        <PenLine size={14} className="mr-1" /> Reply
+                      </Button>
+                    </div>
+                  </Card>
+                );
+              })}
+            </div>
+          </TabsContent>
+        )}
+        
         <TabsContent value="drafts" className="space-y-4 flex-grow">
           <div className="flex justify-between items-center mb-2">
             <h3 className="text-base font-medium">AI-Generated Reply Drafts</h3>
