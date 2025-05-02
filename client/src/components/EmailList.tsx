@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { EmailItem } from "./EmailItem";
 import { EmailDetail } from "./EmailDetail";
@@ -23,6 +23,10 @@ export function EmailList({ onEmailsLoaded }: { onEmailsLoaded?: (emails: any[])
 
   // Track if we need Gmail authorization
   const [needsGmailAuth, setNeedsGmailAuth] = useState(false);
+  
+  // Track cluster-related email IDs
+  const [clusterEmailIds, setClusterEmailIds] = useState<string[]>([]);
+  const [activeClusterId, setActiveClusterId] = useState<string | null>(null);
   
   // Function to handle Gmail authorization
   const handleGmailAuth = () => {
@@ -205,6 +209,46 @@ export function EmailList({ onEmailsLoaded }: { onEmailsLoaded?: (emails: any[])
       onEmailsLoaded(emails);
     }
   }, [emails, onEmailsLoaded]);
+  
+  // Listen for cluster selection events
+  useEffect(() => {
+    const handleClusterSelected = (event: CustomEvent) => {
+      console.log('[EmailList] Cluster selected', event.detail);
+      setClusterEmailIds(event.detail.emailIds);
+      setActiveClusterId(event.detail.clusterId);
+    };
+    
+    const handleClusterDeselected = () => {
+      console.log('[EmailList] Cluster deselected');
+      setClusterEmailIds([]);
+      setActiveClusterId(null);
+    };
+    
+    // Add event listeners
+    window.addEventListener('cluster-selected', handleClusterSelected as EventListener);
+    window.addEventListener('cluster-deselected', handleClusterDeselected);
+    
+    // Cleanup event listeners
+    return () => {
+      window.removeEventListener('cluster-selected', handleClusterSelected as EventListener);
+      window.removeEventListener('cluster-deselected', handleClusterDeselected);
+    };
+  }, []);
+  
+  // Sort emails to bring cluster-related emails to the top
+  const sortedEmails = useMemo(() => {
+    if (!clusterEmailIds.length) return emails;
+    
+    // Create a copy to avoid mutating the original
+    return [...emails].sort((a, b) => {
+      const aInCluster = clusterEmailIds.includes(a.id);
+      const bInCluster = clusterEmailIds.includes(b.id);
+      
+      if (aInCluster && !bInCluster) return -1; // a comes first
+      if (!aInCluster && bInCluster) return 1;  // b comes first
+      return 0; // maintain original order
+    });
+  }, [emails, clusterEmailIds]);
 
   const toggleSelectAll = () => {
     if (selectedEmails.length === emails.length) {

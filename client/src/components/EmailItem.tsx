@@ -39,7 +39,7 @@ interface EmailItemProps {
   onSelect: () => void;
 }
 
-export function EmailItem({ email, isSelected, onSelect, onClick }: EmailItemProps & { onClick?: () => void }) {
+export function EmailItem({ email, isSelected, onSelect, onClick, isInCluster }: EmailItemProps & { onClick?: () => void, isInCluster?: boolean }) {
   const [isStarred, setIsStarred] = useState(email.isStarred);
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -105,8 +105,10 @@ export function EmailItem({ email, isSelected, onSelect, onClick }: EmailItemPro
 
   return (
     <div 
-      className={`border-b border-gray-200 bg-white cursor-pointer hover:shadow-sm ${
+      className={`border-b border-gray-200 cursor-pointer hover:shadow-sm ${
         !email.isRead ? 'font-medium' : ''
+      } ${
+        isInCluster ? 'bg-blue-50 shadow-md border-l-4 border-l-blue-500' : 'bg-white'
       }`}
       onClick={handleEmailClick}
       data-email-id={email.id}

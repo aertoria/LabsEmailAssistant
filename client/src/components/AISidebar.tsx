@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Separator } from "@/components/ui/separator";
 import { Button } from "@/components/ui/button";
@@ -248,6 +248,30 @@ export function AISidebar({ emails }: { emails: any[] }) {
   };
   
   // Function to handle cluster click and open detailed view
+  // Function to highlight related emails in the main list
+  useEffect(() => {
+    if (selectedCluster) {
+      // Publish an event that EmailList can listen for
+      const event = new CustomEvent('cluster-selected', {
+        detail: {
+          emailIds: selectedCluster.emailIds,
+          clusterId: selectedCluster.id
+        }
+      });
+      window.dispatchEvent(event);
+    } else {
+      // When deselecting a cluster, publish an event to reset the email list
+      const event = new CustomEvent('cluster-deselected');
+      window.dispatchEvent(event);
+    }
+    
+    // Cleanup function to reset on unmount
+    return () => {
+      const event = new CustomEvent('cluster-deselected');
+      window.dispatchEvent(event);
+    };
+  }, [selectedCluster]);
+
   const handleClusterClick = (cluster: EmailCluster) => {
     // Toggle selection and detail view
     if (selectedCluster?.id === cluster.id) {
