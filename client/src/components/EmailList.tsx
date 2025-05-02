@@ -497,20 +497,44 @@ export function EmailList({ onEmailsLoaded }: { onEmailsLoaded?: (emails: any[])
             
             {/* Display cluster related info if active */}
             {activeClusterId && clusterEmailIds.length > 0 && (
-              <div className="p-3 bg-blue-100 text-blue-800 font-medium flex items-center justify-between">
-                <div>
-                  <span className="text-blue-900">Showing {clusterEmailIds.length} emails from selected cluster</span>
+              <>
+                <div className="p-3 bg-blue-100 text-blue-800 font-medium flex items-center justify-between">
+                  <div>
+                    <span className="text-blue-900">Showing {clusterEmailIds.length} emails from selected cluster</span>
+                  </div>
+                  <button 
+                    className="text-xs px-2 py-1 bg-white text-blue-600 rounded border border-blue-300 hover:bg-blue-50"
+                    onClick={() => {
+                      // Reset cluster selection
+                      window.dispatchEvent(new CustomEvent('cluster-deselected'));
+                    }}
+                  >
+                    Clear Selection
+                  </button>
                 </div>
-                <button 
-                  className="text-xs px-2 py-1 bg-white text-blue-600 rounded border border-blue-300 hover:bg-blue-50"
-                  onClick={() => {
-                    // Reset cluster selection
-                    window.dispatchEvent(new CustomEvent('cluster-deselected'));
-                  }}
-                >
-                  Clear Selection
-                </button>
-              </div>
+                
+                {/* Cluster emails preview section */}
+                <div className="p-4 bg-blue-50 border-b border-blue-200">
+                  <h3 className="text-sm font-semibold text-blue-800 mb-2">Cluster Email Contents:</h3>
+                  <div className="space-y-2 max-h-40 overflow-y-auto pr-2">
+                    {sortedEmails
+                      .filter(email => clusterEmailIds.includes(email.id))
+                      .slice(0, 3) // Show just the first 3 emails
+                      .map((email, index) => (
+                        <div key={email.id} className="p-2 bg-white rounded shadow-sm border border-blue-200">
+                          <p className="text-xs text-blue-600 font-medium mb-1">From: {email.from}</p>
+                          <p className="text-sm font-medium text-gray-800 mb-1">{email.subject}</p>
+                          <p className="text-xs text-gray-600 line-clamp-2">{email.snippet}</p>
+                        </div>
+                      ))}
+                    {clusterEmailIds.length > 3 && (
+                      <p className="text-xs text-center text-blue-500 mt-1">
+                        + {clusterEmailIds.length - 3} more emails in this cluster
+                      </p>
+                    )}
+                  </div>
+                </div>
+              </>
             )}
             
             {sortedEmails.map((email: any) => (
