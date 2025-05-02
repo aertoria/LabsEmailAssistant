@@ -16,17 +16,17 @@ interface OpenAIResponse {
 // Initialize OpenAI client
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
-// Function to get emails from the last 12 hours and generate individual summaries
+// Function to get emails from the last 24 hours and generate individual summaries
 async function summarizeRecentEmails(emails: any[]) {
   try {
-    // Filter to emails from the last 12 hours and limit to most recent 25
-    const twelveHoursAgo = new Date();
-    twelveHoursAgo.setHours(twelveHoursAgo.getHours() - 12);
+    // Filter to emails from the last 24 hours and limit to most recent 25
+    const twentyFourHoursAgo = new Date();
+    twentyFourHoursAgo.setHours(twentyFourHoursAgo.getHours() - 24);
     
     const recentEmails = emails
       .filter(email => {
         const receivedDate = new Date(email.receivedAt);
-        return receivedDate >= twelveHoursAgo;
+        return receivedDate >= twentyFourHoursAgo;
       })
       .slice(0, 25); // Limit to most recent 25 emails
     

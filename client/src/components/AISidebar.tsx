@@ -398,10 +398,10 @@ export function AISidebar({ emails }: { emails: any[] }) {
             </Card>
           ) : generatedDailyDigest ? (
             <Card className="p-4 space-y-4">
-              <h3 className="text-base font-medium mb-2">Today's Email Summary</h3>
+              <h3 className="text-base font-medium mb-2">Last 24 Hours Email Summary</h3>
               <div>
                 <p className="text-sm text-gray-600 mb-2">
-                  You've received <span className="font-semibold">{generatedDailyDigest.totalEmails} emails</span> today, 
+                  You've received <span className="font-semibold">{generatedDailyDigest.totalEmails} emails</span> in the last 24 hours, 
                   with <span className="font-semibold">{generatedDailyDigest.importantEmails} important</span> messages.
                 </p>
                 
@@ -432,7 +432,7 @@ export function AISidebar({ emails }: { emails: any[] }) {
                 <div className="mt-4">
                   <h4 className="text-xs font-medium text-gray-500 mb-1">AI SUMMARY</h4>
                   <div className="text-sm text-gray-700 whitespace-pre-wrap mt-1">
-                    {typeof generatedDailyDigest.summary === 'string' ? generatedDailyDigest.summary : 'No summary available for today.'}
+                    {typeof generatedDailyDigest.summary === 'string' ? generatedDailyDigest.summary : 'No summary available for the last 24 hours.'}
                   </div>
                 </div>
                 
