@@ -235,12 +235,18 @@ export function EmailList({ onEmailsLoaded }: { onEmailsLoaded?: (emails: any[])
     };
   }, []);
   
-  // Filter out OpenAI emails and sort to bring cluster-related emails to the top
+  // Filter out OpenAI emails and Recruiting Calls, then sort to bring cluster-related emails to the top
   const sortedEmails = useMemo(() => {
-    // First, filter out any emails from OpenAI
-    const filteredEmails = emails.filter(email => {
+    // Filter out unwanted emails
+    const filteredEmails = emails.filter((email: any) => {
       // Check if the email is from OpenAI
-      return !email.from.toLowerCase().includes('@openai.com');
+      const isFromOpenAI = email.from.toLowerCase().includes('@openai.com');
+      
+      // Check if the email subject contains "Recruiting Call"
+      const isRecruitingCall = email.subject.includes('Recruiting Call');
+      
+      // Return true only if it passes both filters (not from OpenAI and not a recruiting call)
+      return !isFromOpenAI && !isRecruitingCall;
     });
     
     // If not in cluster mode, just return the filtered emails
@@ -525,9 +531,9 @@ export function EmailList({ onEmailsLoaded }: { onEmailsLoaded?: (emails: any[])
                   <h3 className="text-sm font-semibold text-blue-800 mb-2">Cluster Email Contents:</h3>
                   <div className="space-y-2 max-h-40 overflow-y-auto pr-2">
                     {sortedEmails
-                      .filter(email => clusterEmailIds.includes(email.id))
+                      .filter((email: any) => clusterEmailIds.includes(email.id))
                       .slice(0, 3) // Show just the first 3 emails
-                      .map((email, index) => (
+                      .map((email: any, index: number) => (
                         <div key={email.id} className="p-2 bg-white rounded shadow-sm border border-blue-200">
                           <p className="text-xs text-blue-600 font-medium mb-1">From: {email.from}</p>
                           <p className="text-sm font-medium text-gray-800 mb-1">{email.subject}</p>
