@@ -19,6 +19,8 @@ interface ClusterNode {
   activeThreads?: number;
   topicSample?: string;
   senders?: string;
+  x?: number;
+  y?: number;
 }
 
 interface ClusterLink {
@@ -44,8 +46,28 @@ export function FlowView() {
   const [graphData, setGraphData] = useState<ClusterData>({ nodes: [], links: [] });
   const [selectedCluster, setSelectedCluster] = useState<EmailCluster | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [graphDimensions, setGraphDimensions] = useState({ width: 800, height: 700 });
   const graphRef = useRef<any>();
   const { toast } = useToast();
+  
+  // Update dimensions on resize
+  useEffect(() => {
+    const updateDimensions = () => {
+      setGraphDimensions({
+        width: window.innerWidth - (selectedCluster ? 384 : 0), // Subtract sidebar width if visible
+        height: window.innerHeight - 120 // Subtract header height
+      });
+    };
+    
+    // Set initial dimensions
+    updateDimensions();
+    
+    // Add event listener
+    window.addEventListener('resize', updateDimensions);
+    
+    // Cleanup
+    return () => window.removeEventListener('resize', updateDimensions);
+  }, [selectedCluster]);
 
   // Query for email clusters
   const clustersQuery = useQuery({
@@ -60,9 +82,26 @@ export function FlowView() {
 
   // Initialize with dummy data for visualization
   useEffect(() => {
+    // Position nodes in a radial layout for better spacing
+    const generateNodePositions = (count: number, centerX: number, centerY: number, radius: number) => {
+      const positions = [];
+      for (let i = 0; i < count; i++) {
+        const angle = (i / count) * 2 * Math.PI;
+        positions.push({
+          x: centerX + radius * Math.cos(angle),
+          y: centerY + radius * Math.sin(angle)
+        });
+      }
+      return positions;
+    };
+    
+    // Get positions for nodes
+    const nodeCount = 5;
+    const positions = generateNodePositions(nodeCount, 0, 0, 300); // Large radius for spacing
+    
     const dummyData: ClusterData = {
       nodes: [
-        { id: "me", name: "Me", emails: 0, val: 20, color: "#1e88e5" },
+        { id: "me", name: "Me", emails: 0, val: 20, color: "#1e88e5", x: 0, y: 0 }, // Center node
         { 
           id: "project-phoenix", 
           name: "Project Phoenix - Core Dev", 
@@ -71,7 +110,9 @@ export function FlowView() {
           color: "#43a047",
           activeThreads: 7,
           topicSample: "User Story #1023: API endpoint\nBug #988: Login page redirect issue",
-          senders: "dev-team@company.com, alex@company.com"
+          senders: "dev-team@company.com, alex@company.com",
+          x: positions[0].x,
+          y: positions[0].y
         },
         { 
           id: "marketing", 
@@ -81,7 +122,9 @@ export function FlowView() {
           color: "#9c27b0",
           activeThreads: 12, 
           topicSample: "Planning: Social Media Calendar\nAssets: Request for new banner designs",
-          senders: "marketing@company.com, design@company.com"
+          senders: "marketing@company.com, design@company.com",
+          x: positions[1].x,
+          y: positions[1].y
         },
         { 
           id: "mobile", 
@@ -91,7 +134,9 @@ export function FlowView() {
           color: "#e53935",
           activeThreads: 25,
           topicSample: "Feature Request: Dark mode for iOS\nIssue: App crashing on older Android",
-          senders: "user-support@company.com, mobile-team@company.com"
+          senders: "user-support@company.com, mobile-team@company.com",
+          x: positions[2].x,
+          y: positions[2].y
         },
         { 
           id: "finance", 
@@ -101,7 +146,9 @@ export function FlowView() {
           color: "#fb8c00",
           activeThreads: 5,
           topicSample: "Q2 Budget Review\nExpense Reports Due Friday",
-          senders: "finance@company.com, accounting@company.com"
+          senders: "finance@company.com, accounting@company.com",
+          x: positions[3].x,
+          y: positions[3].y
         },
         { 
           id: "hr", 
@@ -111,7 +158,9 @@ export function FlowView() {
           color: "#00acc1",
           activeThreads: 8,
           topicSample: "New Benefits Enrollment\nOffice Closure Announcement",
-          senders: "hr@company.com, benefits@company.com"
+          senders: "hr@company.com, benefits@company.com",
+          x: positions[4].x,
+          y: positions[4].y
         },
       ],
       links: [
@@ -120,8 +169,9 @@ export function FlowView() {
         { source: "me", target: "mobile", value: 1 },
         { source: "me", target: "finance", value: 1 },
         { source: "me", target: "hr", value: 1 },
-        { source: "project-phoenix", target: "mobile", value: 0.5 },
-        { source: "marketing", target: "finance", value: 0.3 },
+        // Remove cross-links to keep layout cleaner
+        // { source: "project-phoenix", target: "mobile", value: 0.5 },
+        // { source: "marketing", target: "finance", value: 0.3 },
       ],
     };
 
@@ -223,13 +273,30 @@ export function FlowView() {
           
           // Transform clusters to graph format
           const nodes: ClusterNode[] = [
-            { id: "me", name: "Me", emails: 0, val: 20, color: "#1e88e5" }, // Central node
+            { id: "me", name: "Me", emails: 0, val: 20, color: "#1e88e5", x: 0, y: 0 }, // Central node
           ];
           
           const links: ClusterLink[] = [];
           
+          // Position nodes in a radial layout for better spacing
+          const generateNodePositions = (count: number, centerX: number, centerY: number, radius: number) => {
+            const positions = [];
+            for (let i = 0; i < count; i++) {
+              const angle = (i / count) * 2 * Math.PI;
+              positions.push({
+                x: centerX + radius * Math.cos(angle),
+                y: centerY + radius * Math.sin(angle)
+              });
+            }
+            return positions;
+          };
+          
+          // Calculate positions for the clusters
+          const clusterCount = apiData.clusters.length;
+          const positions = generateNodePositions(clusterCount, 0, 0, 300); // Large radius for spacing
+          
           // Add each cluster as a node with connection to central "me" node
-          apiData.clusters.forEach((cluster: any) => {
+          apiData.clusters.forEach((cluster: any, index: number) => {
             const clusterNode: ClusterNode = {
               id: cluster.id || `cluster-${nodes.length}`,
               name: cluster.topic || `Topic ${nodes.length}`,
@@ -238,7 +305,9 @@ export function FlowView() {
               color: cluster.color || getRandomColor(),
               activeThreads: cluster.activeThreads || (cluster.emails?.length || 0),
               topicSample: cluster.topicSample || '',
-              senders: cluster.senderInfo || ''
+              senders: cluster.senderInfo || '',
+              x: positions[index % positions.length].x,
+              y: positions[index % positions.length].y
             };
             
             nodes.push(clusterNode);
@@ -319,12 +388,11 @@ export function FlowView() {
                 linkDirectionalParticles={2}
                 linkDirectionalParticleWidth={1.5}
                 cooldownTicks={100}
-                d3AlphaDecay={0.02}
+                d3AlphaDecay={0.015}
                 d3VelocityDecay={0.1}
-                d3Force="charge"
                 backgroundColor="#f8fafc"
-                width={800}
-                height={700}
+                width={graphDimensions.width}
+                height={graphDimensions.height}
                 onNodeClick={handleNodeClick}
                 nodeCanvasObject={(node: any, ctx, globalScale) => {
                   // Skip rendering if too small
