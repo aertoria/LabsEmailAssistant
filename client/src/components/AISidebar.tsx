@@ -637,7 +637,10 @@ export function AISidebar({ emails }: { emails: any[] }) {
                 >
                   <div className="p-4 border-b border-gray-100">
                     <div className="flex justify-between items-start mb-1">
-                      <h4 className="text-lg font-semibold text-blue-700">{cluster.title}</h4>
+                      <div className="flex items-center">
+                        <span className="text-xs text-blue-600 border border-blue-300 rounded-full px-1.5 py-0.5 mr-2 bg-blue-50">View</span>
+                        <h4 className="text-lg font-semibold text-blue-700">{cluster.title}</h4>
+                      </div>
                       <Badge className="bg-blue-100 text-blue-800 hover:bg-blue-200">
                         {cluster.threadCount} {cluster.threadCount === 1 ? 'Thread' : 'Threads'}
                       </Badge>
