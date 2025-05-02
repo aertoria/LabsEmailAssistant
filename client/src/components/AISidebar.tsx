@@ -269,16 +269,29 @@ export function AISidebar({ emails }: { emails: any[] }) {
       // Remove resize handler
       if (window._clusterResizeHandler) {
         window.removeEventListener('resize', window._clusterResizeHandler);
-        window._clusterResizeHandler = null;
+        window._clusterResizeHandler = undefined;
       }
     } else {
       setSelectedCluster(cluster);
       
       // Small delay to ensure DOM is ready
       setTimeout(() => {
-        // Clear any existing connections
+        // Clear any existing connections and cleanup event listeners
         const connections = document.querySelectorAll('.cluster-connection');
-        connections.forEach(conn => conn.remove());
+        connections.forEach(conn => {
+          if (conn._updateFn) {
+            window.removeEventListener('scroll', conn._updateFn);
+          }
+          conn.remove();
+        });
+        
+        // Reset all email elements
+        document.querySelectorAll('[data-email-id]').forEach(el => {
+          el.classList.remove('cluster-related-email');
+        });
+        
+        // Add special styling to related emails
+        const connectedSvgs: SVGSVGElement[] = [];
         
         // Draw connections from cluster to related emails
         cluster.emailIds.forEach(emailId => {
@@ -286,27 +299,61 @@ export function AISidebar({ emails }: { emails: any[] }) {
           const clusterElement = document.querySelector(`[data-cluster-id="${cluster.id}"]`);
           
           if (emailElement && clusterElement) {
-            drawConnection(clusterElement, emailElement);
+            // Style the email element as related
+            emailElement.classList.add('cluster-related-email');
+            
+            // Create dynamic CSS for related emails if not already added
+            if (!document.getElementById('cluster-styles')) {
+              const style = document.createElement('style');
+              style.id = 'cluster-styles';
+              style.innerHTML = `
+                .cluster-related-email {
+                  box-shadow: 0 0 0 2px #3b82f6;
+                  position: relative;
+                  z-index: 10;
+                  background-color: #f0f7ff !important;
+                  transition: all 0.3s ease;
+                }
+              `;
+              document.head.appendChild(style);
+            }
+            
+            // Draw the connection with scroll updating
+            const svg = drawConnection(clusterElement, emailElement);
+            connectedSvgs.push(svg);
           }
         });
         
-        // Scroll related emails into view if not visible
+        // Scroll first related email into view if not visible
         const firstEmail = document.querySelector(`[data-email-id="${cluster.emailIds[0]}"]`);
         if (firstEmail) {
           firstEmail.scrollIntoView({ behavior: 'smooth', block: 'center' });
         }
         
-        // Show toast notification
+        // Show toast notification with more details
         toast({
           title: "Cluster selected",
-          description: `Showing ${cluster.emailIds.length} emails related to "${cluster.title}"`,
+          description: `Showing ${cluster.emailIds.length} emails related to "${cluster.title}". Scroll to see all connected emails.`
         });
+        
+        // Add window resize handler to update connections
+        const handleResize = () => {
+          connectedSvgs.forEach(svg => {
+            if (svg && svg._updateFn) {
+              svg._updateFn();
+            }
+          });
+        };
+        
+        window.addEventListener('resize', handleResize);
+        // Store for cleanup
+        window._clusterResizeHandler = handleResize;
       }, 100);
     }
   };
   
   // Draw SVG connection line between two elements
-  const drawConnection = (from: Element, to: Element) => {
+  const drawConnection = (from: Element, to: Element): SVGSVGElement => {
     // Get positions
     const fromRect = from.getBoundingClientRect();
     const toRect = to.getBoundingClientRect();
