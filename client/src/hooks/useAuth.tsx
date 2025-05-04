@@ -17,6 +17,7 @@ interface AuthContextType {
   user: User | null;
   handleGoogleSignIn: () => Promise<void>;
   signOut: () => Promise<void>;
+  isVmMode: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -72,8 +73,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const checkAuthStatus = async () => {
       try {
+        // If in VM mode, add the demo mode header
+        const headers: Record<string, string> = {};
+        if (isVmMode) {
+          headers['X-Demo-Mode'] = 'true';
+        }
+        
         const response = await fetch('/api/auth/status', {
           credentials: 'include',
+          headers
         });
 
         if (response.ok) {
@@ -81,7 +89,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           if (data.authenticated) {
             setIsAuthenticated(true);
             setUser(data.user);
-            localStorage.setItem('gmail_app_user', JSON.stringify(data.user));
+            
+            // Only try to use localStorage if we're not in VM mode
+            if (!isVmMode) {
+              try {
+                localStorage.setItem('gmail_app_user', JSON.stringify(data.user));
+              } catch (e) {
+                console.warn('Could not save user to localStorage');
+              }
+            }
           }
         }
       } catch (error) {
@@ -90,7 +106,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
 
     checkAuthStatus();
-  }, []);
+  }, [isVmMode]); // Add isVmMode as a dependency
 
   const handleGoogleSignIn = () => {
     return new Promise<void>((resolve, reject) => {
@@ -139,13 +155,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             // Save authentication state immediately
             setIsAuthenticated(true);
             setUser(data.user);
-            localStorage.setItem('gmail_app_user', JSON.stringify(data.user));
+            
+            // Only try to use localStorage if we're not in VM mode
+            if (!isVmMode) {
+              try {
+                localStorage.setItem('gmail_app_user', JSON.stringify(data.user));
+              } catch (e) {
+                console.warn('Could not save user to localStorage during sign in');
+              }
+            }
             
             // Verify session is properly established on the server before redirecting
             try {
               // Make an authenticated request to verify session
+              // If in VM mode, add the demo mode header
+              const sessionHeaders: Record<string, string> = {};
+              if (isVmMode) {
+                sessionHeaders['X-Demo-Mode'] = 'true';
+              }
+              
               const sessionCheck = await fetch('/api/auth/status', {
-                credentials: 'include'
+                credentials: 'include',
+                headers: sessionHeaders
               });
               
               const sessionData = await sessionCheck.json();
@@ -177,14 +208,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signOut = async () => {
     try {
+      // If in VM mode, add the demo mode header
+      const headers: Record<string, string> = {};
+      if (isVmMode) {
+        headers['X-Demo-Mode'] = 'true';
+      }
+
       await fetch('/api/auth/logout', {
         method: 'POST',
         credentials: 'include',
+        headers
       });
 
       setIsAuthenticated(false);
       setUser(null);
-      localStorage.removeItem('gmail_app_user');
+      
+      // Only try to use localStorage if we're not in VM mode
+      if (!isVmMode) {
+        try {
+          localStorage.removeItem('gmail_app_user');
+        } catch (e) {
+          console.warn('Could not remove user from localStorage during sign out');
+        }
+      }
+
       toast.success('Signed out successfully');
       setLocation('/');
     } catch (error) {
@@ -193,8 +240,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  // Pass isVmMode to the handleGoogleSignIn function
+  const signInWithGoogle = () => {
+    return handleGoogleSignIn();
+  };
+  
   return (
-    <AuthContext.Provider value={{ isAuthenticated, user, handleGoogleSignIn, signOut }}>
+    <AuthContext.Provider value={{ 
+      isAuthenticated, 
+      user, 
+      handleGoogleSignIn: signInWithGoogle, 
+      signOut,
+      isVmMode
+    }}>
       {children}
     </AuthContext.Provider>
   );
