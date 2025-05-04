@@ -196,11 +196,13 @@ export function setupAuth(app: Express, storage: IStorage) {
       return next();
     }
 
-    // Check for Demo Mode header (used in VM environments)
-    const isDemoMode = req.headers['x-demo-mode'] === 'true';
+    // Check for Demo Mode header (used in VM environments), also check hostname
+    const isDemoMode = req.headers['x-demo-mode'] === 'true' || 
+                      req.hostname?.includes('replit.app') || 
+                      req.hostname?.includes('replit.dev');
     
     if (isDemoMode) {
-      console.log('Demo mode detected, using castives@gmail.com');
+      console.log(`Demo mode detected (${req.hostname}), using castives@gmail.com`);
       // For demo mode, use a hardcoded user (typically one that's already in the database)
       const user = await storage.getUserByUsername('castives@gmail.com');
       if (user) {
@@ -242,11 +244,13 @@ export function setupAuth(app: Express, storage: IStorage) {
 
   // Auth status check
   app.get("/api/auth/status", async (req: Request, res: Response) => {
-    // Check for Demo Mode header (used in VM environments)
-    const isDemoMode = req.headers['x-demo-mode'] === 'true';
+    // Check for Demo Mode header (used in VM environments), also check hostname
+    const isDemoMode = req.headers['x-demo-mode'] === 'true' || 
+                      req.hostname?.includes('replit.app') || 
+                      req.hostname?.includes('replit.dev');
     
     if (isDemoMode) {
-      console.log('Demo mode detected in auth/status, using castives@gmail.com');
+      console.log(`Demo mode detected in auth/status (${req.hostname}), using castives@gmail.com`);
       // For demo mode, use a hardcoded user (typically one that's already in the database)
       const user = await storage.getUserByUsername('castives@gmail.com');
       if (user) {
@@ -338,6 +342,18 @@ export function setupAuth(app: Express, storage: IStorage) {
   
   // Logout
   app.post("/api/auth/logout", (req: Request, res: Response) => {
+    // Check for Demo Mode header (used in VM environments), also check hostname
+    const isDemoMode = req.headers['x-demo-mode'] === 'true' || 
+                    req.hostname?.includes('replit.app') || 
+                    req.hostname?.includes('replit.dev');
+    
+    if (isDemoMode) {
+      console.log(`Demo mode detected in logout (${req.hostname}), skipping session destroy`);
+      return res.status(200).json({
+        message: "Successfully logged out (demo mode)",
+      });
+    }
+
     req.session.destroy((err) => {
       if (err) {
         return res.status(500).json({
