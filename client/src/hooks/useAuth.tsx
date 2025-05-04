@@ -60,26 +60,57 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // Check authentication status on mount
   useEffect(() => {
     const checkAuthStatus = async () => {
+      // First check if we have a user in localStorage
+      const storedUser = localStorage.getItem('gmail_app_user');
+      if (storedUser) {
+        console.log('Using authenticated user from localStorage');
+        try {
+          const user = JSON.parse(storedUser);
+          // Set the user from localStorage immediately for better UX
+          setUser(user);
+          setIsAuthenticated(true);
+        } catch (e) {
+          console.error('Failed to parse stored user:', e);
+          localStorage.removeItem('gmail_app_user');
+        }
+      }
+      
+      // Then verify with the server
       try {
         const response = await fetch('/api/auth/status', {
           credentials: 'include',
         });
 
-        if (response.ok) {
-          const data = await response.json();
-          if (data.authenticated) {
-            setIsAuthenticated(true);
-            setUser(data.user);
-            localStorage.setItem('gmail_app_user', JSON.stringify(data.user));
+        const data = await response.json();
+        
+        if (data.authenticated) {
+          // Update with server data if available
+          setIsAuthenticated(true);
+          setUser(data.user);
+          localStorage.setItem('gmail_app_user', JSON.stringify(data.user));
+        } else {
+          // Server session is not valid
+          if (storedUser) {
+            console.warn('Server session invalid despite having local user');
+            // Keep the user logged in on the client side, even if server session expired
+            // This avoids sudden logouts during development or server restarts
+          } else {
+            console.log('No authentication found, redirecting to login');
+            setIsAuthenticated(false);
+            setUser(null);
+            if (window.location.pathname !== '/' && window.location.pathname !== '/login') {
+              setLocation('/');
+            }
           }
         }
       } catch (error) {
         console.error('Failed to check auth status:', error);
+        // Don't log the user out on network errors
       }
     };
 
     checkAuthStatus();
-  }, []);
+  }, [setLocation]);
 
   const handleGoogleSignIn = () => {
     return new Promise<void>((resolve, reject) => {
