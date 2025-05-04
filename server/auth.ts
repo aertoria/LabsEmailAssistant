@@ -19,7 +19,14 @@ const createOAuth2Client = () => {
 // Helper to load creds from session
 function authFromSession(req: Request) {
   const { tokens } = req.session as any;
-  if (!tokens) return null;
+  if (!tokens) {
+    console.log(`No tokens found in session for request to ${req.path}`);
+    if (req.session.userId) {
+      console.log(`Session has userId ${req.session.userId} but no tokens`);
+    }
+    return null;
+  }
+  console.log(`Found tokens in session for request to ${req.path}`);
   const oauth2Client = createOAuth2Client();
   oauth2Client.setCredentials(tokens);
   return oauth2Client;
