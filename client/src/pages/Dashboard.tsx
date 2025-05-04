@@ -16,51 +16,68 @@ export default function Dashboard() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [emails, setEmails] = useState<any[]>([]);
   
-  // TEMPORARY FIX: Skip server auth checks and use only local storage
+  // Check auth status once at initialization
   useEffect(() => {
     if (initialized) return;
     
-    // Check for authenticated user in local storage first
-    const storedUser = localStorage.getItem('gmail_app_user');
-    let hasLocalUser = false;
-    
-    if (storedUser) {
-      try {
-        const parsedUser = JSON.parse(storedUser);
-        setLocalUser(parsedUser);
+    const checkAuthentication = async () => {
+      // Check for authenticated user in local storage first
+      const storedUser = localStorage.getItem('gmail_app_user');
+      let hasLocalUser = false;
+      
+      if (storedUser) {
+        try {
+          const parsedUser = JSON.parse(storedUser);
+          setLocalUser(parsedUser);
+          setIsAuthenticated(true);
+          hasLocalUser = true;
+          console.log("Using authenticated user from localStorage");
+          
+          // Even with local user, verify session is still valid on server
+          try {
+            const response = await fetch('/api/auth/status', {
+              credentials: 'include'
+            });
+            
+            if (!response.ok) {
+              console.warn("Server session invalid despite having local user");
+              hasLocalUser = false;
+              setIsAuthenticated(false);
+              // Don't clear localStorage yet, let the auth system handle it
+            }
+          } catch (serverError) {
+            console.error("Error checking server session:", serverError);
+            // Continue with local auth for now
+          }
+        } catch (e) {
+          console.error("Failed to parse stored user:", e);
+        }
+      }
+      
+      // If we have auth from provider, use that
+      if (authProviderAuthenticated && authUser) {
         setIsAuthenticated(true);
+        setLocalUser(authUser);
+        console.log("Using authenticated user from auth provider");
         hasLocalUser = true;
-        console.log("PERMANENT FIX: Using authenticated user from localStorage only");
-      } catch (e) {
-        console.error("Failed to parse stored user:", e);
       }
-    }
-    
-    // If we have auth from provider, use that
-    if (authProviderAuthenticated && authUser) {
-      setIsAuthenticated(true);
-      setLocalUser(authUser);
-      console.log("Using authenticated user from auth provider");
-      hasLocalUser = true;
-    }
-    
-    // If no auth from either source, redirect once
-    if (!hasLocalUser && !authProviderAuthenticated) {
-      console.log("No authentication found, redirecting to login");
-      // Use session storage to prevent redirect loops
-      if (!sessionStorage.getItem('prevent_redirect')) {
-        sessionStorage.setItem('prevent_redirect', 'true');
-        setLocation('/');
-      } else {
-        console.log("Preventing redirect loop");
+      
+      // If no auth from either source, redirect once
+      if (!hasLocalUser && !authProviderAuthenticated) {
+        console.log("No authentication found, redirecting to login");
+        setLocation('/'); // Use React Router instead of hard navigation
+        return false;
       }
-    } else {
-      // We have a user, clear the redirect prevention
-      sessionStorage.removeItem('prevent_redirect');
-    }
+      
+      return true;
+    };
     
-    // Mark as initialized to prevent repeated checks
-    setInitialized(true);
+    // If authentication check succeeds, mark as initialized
+    checkAuthentication().then(result => {
+      if (result) {
+        setInitialized(true);
+      }
+    });
   }, [authProviderAuthenticated, authUser, initialized]);
   
   // Use whichever user we have

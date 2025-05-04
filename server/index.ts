@@ -12,12 +12,7 @@ app.use(express.urlencoded({ extended: false }));
 
 // Add CORS middleware
 app.use(cors({
-  origin: [
-    'http://localhost:5173', 
-    'http://localhost:3000', 
-    'http://localhost:5000', 
-    'https://google-labs-email-assistant.replit.app'
-  ],
+  origin: ['http://localhost:5173', 'http://localhost:3000', 'http://localhost:5000'],
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization']
@@ -31,8 +26,7 @@ app.use((req, res, next) => {
       'Content-Security-Policy',
       "default-src 'self' 'unsafe-inline' 'unsafe-eval' ws: wss:; " +
       "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://accounts.google.com https://apis.google.com https://replit.com; " +
-      "style-src 'self' 'unsafe-inline' https://accounts.google.com https://fonts.googleapis.com; " +
-      "font-src 'self' https://fonts.gstatic.com; " +
+      "style-src 'self' 'unsafe-inline' https://accounts.google.com; " +
       "connect-src 'self' ws: wss: https://accounts.google.com https://oauth2.googleapis.com; " +
       "frame-src 'self' https://accounts.google.com; " +
       "img-src 'self' data: https://*.googleusercontent.com;"
@@ -42,10 +36,9 @@ app.use((req, res, next) => {
     res.setHeader(
       'Content-Security-Policy',
       "default-src 'self'; " +
-      "script-src 'self' 'unsafe-inline' https://accounts.google.com https://apis.google.com https://google-labs-email-assistant.replit.app; " +
-      "style-src 'self' 'unsafe-inline' https://accounts.google.com https://fonts.googleapis.com; " +
-      "font-src 'self' https://fonts.gstatic.com; " +
-      "connect-src 'self' https://accounts.google.com https://oauth2.googleapis.com https://google-labs-email-assistant.replit.app; " +
+      "script-src 'self' 'unsafe-inline' https://accounts.google.com https://apis.google.com; " +
+      "style-src 'self' 'unsafe-inline' https://accounts.google.com; " +
+      "connect-src 'self' https://accounts.google.com https://oauth2.googleapis.com; " +
       "frame-src 'self' https://accounts.google.com; " +
       "img-src 'self' data: https://*.googleusercontent.com;"
     );

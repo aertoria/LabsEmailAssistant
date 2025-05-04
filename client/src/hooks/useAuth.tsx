@@ -60,72 +60,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // Check authentication status on mount
   useEffect(() => {
     const checkAuthStatus = async () => {
-      // First check if we have a user in localStorage
-      const storedUser = localStorage.getItem('gmail_app_user');
-      if (storedUser) {
-        console.log('Using authenticated user from localStorage');
-        try {
-          const user = JSON.parse(storedUser);
-          // Set the user from localStorage immediately for better UX
-          setUser(user);
-          setIsAuthenticated(true);
-        } catch (e) {
-          console.error('Failed to parse stored user:', e);
-          localStorage.removeItem('gmail_app_user');
-        }
-      }
-      
-      // Then verify with the server
       try {
         const response = await fetch('/api/auth/status', {
           credentials: 'include',
         });
 
-        const data = await response.json();
-        
-        if (data.authenticated) {
-          // Update with server data if available
-          setIsAuthenticated(true);
-          setUser(data.user);
-          localStorage.setItem('gmail_app_user', JSON.stringify(data.user));
-        } else {
-          // Server session is not valid
-          if (storedUser) {
-            console.warn('Server session invalid despite having local user');
-            // Keep the user logged in on the client side, even if server session expired
-            // This avoids sudden logouts during development or server restarts
-            
-            // Don't redirect - most importantly, prevent refresh loops!
+        if (response.ok) {
+          const data = await response.json();
+          if (data.authenticated) {
             setIsAuthenticated(true);
-            setUser(JSON.parse(storedUser));
-          } else {
-            console.log('No authentication found, not redirecting to prevent loops');
-            setIsAuthenticated(false);
-            setUser(null);
-            // IMPORTANT: Only redirect if we're not already on login page
-            // and we haven't already redirected in this session
-            const hasRedirected = sessionStorage.getItem('redirected_to_login');
-            if (!hasRedirected && 
-                window.location.pathname !== '/' && 
-                window.location.pathname !== '/login') {
-              sessionStorage.setItem('redirected_to_login', 'true');
-              setLocation('/');
-            }
+            setUser(data.user);
+            localStorage.setItem('gmail_app_user', JSON.stringify(data.user));
           }
         }
       } catch (error) {
         console.error('Failed to check auth status:', error);
-        // Don't log the user out on network errors
       }
     };
 
     checkAuthStatus();
-  }, [setLocation]);
+  }, []);
 
   const handleGoogleSignIn = () => {
-    // Clear any redirect flags when starting a new sign-in
-    sessionStorage.removeItem('redirected_to_login');
-    
     return new Promise<void>((resolve, reject) => {
       if (!(window as any).google?.accounts?.oauth2) {
         reject(new Error('Google Identity Services not loaded'));
@@ -141,8 +97,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         client_id: googleClientId,
         scope: 'https://www.googleapis.com/auth/gmail.readonly https://www.googleapis.com/auth/gmail.modify https://www.googleapis.com/auth/userinfo.profile https://www.googleapis.com/auth/userinfo.email',
         ux_mode: 'popup',
-        // For the PKCE flow, this ensures we use the special value 'postmessage'
-        redirect_uri: 'postmessage',
         callback: async (resp: { code: string; error?: string; error_description?: string }) => {
           const { code, error, error_description } = resp;
           if (error) {

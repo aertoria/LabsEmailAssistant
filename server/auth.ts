@@ -19,14 +19,7 @@ const createOAuth2Client = () => {
 // Helper to load creds from session
 function authFromSession(req: Request) {
   const { tokens } = req.session as any;
-  if (!tokens) {
-    console.log(`No tokens found in session for request to ${req.path}`);
-    if (req.session.userId) {
-      console.log(`Session has userId ${req.session.userId} but no tokens`);
-    }
-    return null;
-  }
-  console.log(`Found tokens in session for request to ${req.path}`);
+  if (!tokens) return null;
   const oauth2Client = createOAuth2Client();
   oauth2Client.setCredentials(tokens);
   return oauth2Client;
@@ -103,25 +96,12 @@ export function setupAuth(app: Express, storage: IStorage) {
       if (!code) {
         return res.status(400).json({ message: "No code provided" });
       }
-      
-      console.log("Received auth code, preparing to exchange for tokens");
-      console.log("Using redirect URI:", process.env.GOOGLE_REDIRECT_URI || "postmessage");
 
       // Create a fresh OAuth client for this exchange
       const tempClient = createOAuth2Client();
 
       // Exchange the code for tokens
-      console.log("Exchanging code for tokens...");
-      let tokens;
-      try {
-        const tokenResponse = await tempClient.getToken(code);
-        tokens = tokenResponse.tokens;
-        console.log("Token exchange successful");
-      } catch (error: unknown) {
-        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-        console.error("Token exchange error:", error);
-        return res.status(400).json({ message: "Failed to exchange code for tokens", error: errorMessage });
-      }
+      const { tokens } = await tempClient.getToken(code);
 
       // Set credentials on the client so we can query userinfo
       tempClient.setCredentials(tokens);
@@ -216,59 +196,27 @@ export function setupAuth(app: Express, storage: IStorage) {
       return next();
     }
 
-    console.log(`Checking auth for restricted endpoint: ${req.path}`);
-    console.log(`Session data: userId=${req.session.userId}, sessionID=${req.session.id}`);
-
-    if (!req.session || !req.session.userId) {
-      console.log(`No session or userId found for ${req.path}`);
-      return res.status(401).json({ message: "Unauthorized" });
-    }
-
     try {
-      // First, check if we can get the user from storage directly
-      const user = await storage.getUser(req.session.userId);
+      const auth = authFromSession(req);
+      if (!auth) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+
+      const oauth2 = google.oauth2({ version: 'v2', auth });
+      const { data } = await oauth2.userinfo.get();
+      
+      if (!data.email) {
+        return res.status(401).json({ message: "Invalid user info" });
+      }
+
+      const user = await storage.getUserByUsername(data.email);
       if (!user) {
-        console.log(`User ${req.session.userId} not found in storage`);
         return res.status(401).json({ message: "User not found" });
       }
 
-      // Then verify the token if needed
-      const auth = authFromSession(req);
-      if (!auth) {
-        console.log(`No auth tokens for user ${user.id} (${user.email})`);
-        // For now, try to continue with the user if found, even without tokens
-        req.user = user;
-        return next();
-      }
-
-      // Validate with Google API
-      try {
-        const oauth2 = google.oauth2({ version: 'v2', auth });
-        const { data } = await oauth2.userinfo.get();
-        
-        if (!data.email) {
-          console.log('No email found in Google API response');
-          return res.status(401).json({ message: "Invalid user info" });
-        }
-
-        // Verify email matches
-        if (data.email !== user.email) {
-          console.log(`Email mismatch: Session user ${user.email}, Google API returned ${data.email}`);
-          return res.status(401).json({ message: "User identity mismatch" });
-        }
-
-        console.log(`User ${user.id} (${user.email}) authenticated successfully`);
-        req.user = user;
-        next();
-      } catch (googleErr) {
-        console.error('Google API error:', googleErr);
-        // Still try to continue with the user if we found one
-        console.log(`Continuing with user ${user.id} despite Google API error`);
-        req.user = user;
-        next();
-      }
+      req.user = user;
+      next();
     } catch (err) {
-      console.error('Auth middleware error:', err);
       next(err);
     }
   });
@@ -281,11 +229,7 @@ export function setupAuth(app: Express, storage: IStorage) {
 
   // Auth status check
   app.get("/api/auth/status", async (req: Request, res: Response) => {
-    console.log(`Auth status check - Session ID: ${req.session.id}`);
-    console.log(`Session data: userId=${req.session.userId}, has tokens: ${Boolean((req.session as any).tokens)}`);
-    
     if (!req.session.userId) {
-      console.log("No userId in session, returning not authenticated");
       return res.status(200).json({
         authenticated: false,
       });
@@ -295,13 +239,11 @@ export function setupAuth(app: Express, storage: IStorage) {
       const user = await storage.getUser(req.session.userId);
       
       if (!user) {
-        console.log(`User ${req.session.userId} not found in storage`);
         return res.status(200).json({
           authenticated: false,
         });
       }
 
-      console.log(`User ${user.id} (${user.email}) found, returning authenticated status`);
       res.status(200).json({
         authenticated: true,
         user: {
