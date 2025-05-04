@@ -94,11 +94,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             console.warn('Server session invalid despite having local user');
             // Keep the user logged in on the client side, even if server session expired
             // This avoids sudden logouts during development or server restarts
+            
+            // Don't redirect - most importantly, prevent refresh loops!
+            setIsAuthenticated(true);
+            setUser(JSON.parse(storedUser));
           } else {
-            console.log('No authentication found, redirecting to login');
+            console.log('No authentication found, not redirecting to prevent loops');
             setIsAuthenticated(false);
             setUser(null);
-            if (window.location.pathname !== '/' && window.location.pathname !== '/login') {
+            // IMPORTANT: Only redirect if we're not already on login page
+            // and we haven't already redirected in this session
+            const hasRedirected = sessionStorage.getItem('redirected_to_login');
+            if (!hasRedirected && 
+                window.location.pathname !== '/' && 
+                window.location.pathname !== '/login') {
+              sessionStorage.setItem('redirected_to_login', 'true');
               setLocation('/');
             }
           }
@@ -113,6 +123,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [setLocation]);
 
   const handleGoogleSignIn = () => {
+    // Clear any redirect flags when starting a new sign-in
+    sessionStorage.removeItem('redirected_to_login');
+    
     return new Promise<void>((resolve, reject) => {
       if (!(window as any).google?.accounts?.oauth2) {
         reject(new Error('Google Identity Services not loaded'));
