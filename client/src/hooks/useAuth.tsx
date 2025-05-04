@@ -33,7 +33,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [user, setUser] = useState<User | null>(null);
   const [isInitialized, setIsInitialized] = useState(false);
+  const [isVmMode, setIsVmMode] = useState(false);
   const [, setLocation] = useLocation();
+  
+  // Detect if we're in VM mode (no localStorage available)
+  useEffect(() => {
+    try {
+      localStorage.getItem('test');
+    } catch (e) {
+      console.warn('Running in VM environment with no localStorage access');
+      setIsVmMode(true);
+    }
+  }, []);
 
   // Load Google Identity Services script
   useEffect(() => {

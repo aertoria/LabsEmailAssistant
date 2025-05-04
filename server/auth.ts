@@ -196,6 +196,19 @@ export function setupAuth(app: Express, storage: IStorage) {
       return next();
     }
 
+    // Check for Demo Mode header (used in VM environments)
+    const isDemoMode = req.headers['x-demo-mode'] === 'true';
+    
+    if (isDemoMode) {
+      console.log('Demo mode detected, using castives@gmail.com');
+      // For demo mode, use a hardcoded user (typically one that's already in the database)
+      const user = await storage.getUserByUsername('castives@gmail.com');
+      if (user) {
+        req.user = user;
+        return next();
+      }
+    }
+
     try {
       const auth = authFromSession(req);
       if (!auth) {
@@ -229,6 +242,27 @@ export function setupAuth(app: Express, storage: IStorage) {
 
   // Auth status check
   app.get("/api/auth/status", async (req: Request, res: Response) => {
+    // Check for Demo Mode header (used in VM environments)
+    const isDemoMode = req.headers['x-demo-mode'] === 'true';
+    
+    if (isDemoMode) {
+      console.log('Demo mode detected in auth/status, using castives@gmail.com');
+      // For demo mode, use a hardcoded user (typically one that's already in the database)
+      const user = await storage.getUserByUsername('castives@gmail.com');
+      if (user) {
+        return res.status(200).json({
+          authenticated: true,
+          user: {
+            id: user.id,
+            email: user.email,
+            name: user.name,
+            googleId: user.googleId,
+          },
+          demoMode: true
+        });
+      }
+    }
+    
     if (!req.session.userId) {
       return res.status(200).json({
         authenticated: false,

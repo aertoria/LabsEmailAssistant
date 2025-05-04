@@ -44,9 +44,30 @@ export async function apiRequest(
   url: string,
   data?: unknown | undefined,
 ): Promise<Response> {
+  // Check if we have a user in localStorage
+  let hasLocalStorage = true;
+  let hasLocalUser = false;
+    
+  try {
+    hasLocalUser = localStorage.getItem("gmail_app_user") !== null;
+  } catch (e) {
+    console.warn("LocalStorage not available in apiRequest, operating in VM mode");
+    hasLocalStorage = false;
+    // In VM environment, we'll assume the user exists
+    hasLocalUser = true;
+  }
+
+  // Setup headers
+  const headers: Record<string, string> = data ? { "Content-Type": "application/json" } : {};
+  
+  // If we have a local user, add a demo mode header to help the server
+  if (hasLocalUser) {
+    headers["X-Demo-Mode"] = "true";
+  }
+
   const res = await fetch(url, {
     method,
-    headers: data ? { "Content-Type": "application/json" } : {},
+    headers,
     body: data ? JSON.stringify(data) : undefined,
     credentials: "include",
   });
@@ -61,8 +82,28 @@ export const getQueryFn: <T>(options: {
 }) => QueryFunction<T> =
   ({ on401: unauthorizedBehavior }) =>
   async ({ queryKey }) => {
+    // Check if we have a user in localStorage
+    let hasLocalStorage = true;
+    let hasLocalUser = false;
+    
+    try {
+      hasLocalUser = localStorage.getItem("gmail_app_user") !== null;
+    } catch (e) {
+      console.warn("LocalStorage not available, operating in VM mode");
+      hasLocalStorage = false;
+      // In VM environment, we'll assume the user exists
+      hasLocalUser = true;
+    }
+    
+    // If we have a local user, add demo mode headers
+    const headers: Record<string, string> = {};
+    if (hasLocalUser) {
+      headers["X-Demo-Mode"] = "true";
+    }
+    
     const res = await fetch(queryKey[0] as string, {
       credentials: "include",
+      headers
     });
 
     if (unauthorizedBehavior === "returnNull" && res.status === 401) {
