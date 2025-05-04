@@ -12,7 +12,12 @@ app.use(express.urlencoded({ extended: false }));
 
 // Add CORS middleware
 app.use(cors({
-  origin: ['http://localhost:5173', 'http://localhost:3000', 'http://localhost:5000'],
+  origin: [
+    'http://localhost:5173', 
+    'http://localhost:3000', 
+    'http://localhost:5000', 
+    'https://google-labs-email-assistant.replit.app'
+  ],
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization']
@@ -36,9 +41,9 @@ app.use((req, res, next) => {
     res.setHeader(
       'Content-Security-Policy',
       "default-src 'self'; " +
-      "script-src 'self' 'unsafe-inline' https://accounts.google.com https://apis.google.com; " +
+      "script-src 'self' 'unsafe-inline' https://accounts.google.com https://apis.google.com https://google-labs-email-assistant.replit.app; " +
       "style-src 'self' 'unsafe-inline' https://accounts.google.com; " +
-      "connect-src 'self' https://accounts.google.com https://oauth2.googleapis.com; " +
+      "connect-src 'self' https://accounts.google.com https://oauth2.googleapis.com https://google-labs-email-assistant.replit.app; " +
       "frame-src 'self' https://accounts.google.com; " +
       "img-src 'self' data: https://*.googleusercontent.com;"
     );
