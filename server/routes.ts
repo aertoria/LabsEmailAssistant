@@ -14,11 +14,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       resave: false,
       saveUninitialized: false,
       cookie: {
-        secure: process.env.NODE_ENV === "production", // HTTPS in prod
+        secure: true, // HTTPS required for production and works with Replit
         httpOnly: true,
-        sameSite: process.env.NODE_ENV === "production" ? 'none' : 'lax',
+        sameSite: 'none', // Required for cross-site cookies in modern browsers
         maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
-        domain: process.env.NODE_ENV === "production" ? '.replit.app' : undefined,
+        // Don't set domain for better compatibility
       },
     })
   );
