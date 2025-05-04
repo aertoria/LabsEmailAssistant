@@ -96,12 +96,25 @@ export function setupAuth(app: Express, storage: IStorage) {
       if (!code) {
         return res.status(400).json({ message: "No code provided" });
       }
+      
+      console.log("Received auth code, preparing to exchange for tokens");
+      console.log("Using redirect URI:", process.env.GOOGLE_REDIRECT_URI || "postmessage");
 
       // Create a fresh OAuth client for this exchange
       const tempClient = createOAuth2Client();
 
       // Exchange the code for tokens
-      const { tokens } = await tempClient.getToken(code);
+      console.log("Exchanging code for tokens...");
+      let tokens;
+      try {
+        const tokenResponse = await tempClient.getToken(code);
+        tokens = tokenResponse.tokens;
+        console.log("Token exchange successful");
+      } catch (error: unknown) {
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+        console.error("Token exchange error:", error);
+        return res.status(400).json({ message: "Failed to exchange code for tokens", error: errorMessage });
+      }
 
       // Set credentials on the client so we can query userinfo
       tempClient.setCredentials(tokens);
