@@ -1,0 +1,27 @@
+Critical User Journeys (CUJs):
+Effortless Brain Dump & Tasking: Sarah emails cc@life.ai a jumbled voice note, PDFs or typed thought: "Remember to prep for the Project Phoenix review, ask finance about Q3 numbers, and pick up milk." CC intelligently parses this into actionable to-dos, calendar reminders, and flags key entities.
+Inbox Domination & Smart Reply: Josh gets a complex client email with multiple stakeholders CC'd. He forwards it to cc@life.ai (or CCs it initially). CC:
+Summarizes the thread and key action items.
+Drafts a personalized reply in Josh's style, considering past interactions and sentiment.
+Suggests, "This seems urgent. Want me to flag for follow-up if no reply by EOD?"
+Q
+
+
+Proactive Context & Synthesis: Maria is about to email a new important contact. She sends an email to cc on the matter who (via a lightweight Gmail extension or by being CC'd on the draft) proactively surfaces with a draft:
+Past (public or shared) interactions with this person or their organization.
+Key talking points based on Maria's recent work.
+A "dot connect" insight: "This person recently mentioned interest in X, which aligns with your Project Y."
+Natural Language Gmail Control: David emails cc@life.ai: "Archive all newsletters older than 7 days. And find that presentation I sent to marketing last month about the Q4 strategy." CC executes these commands via the Gmail API.
+Natural Language Gmail Control: David forwards an email: I really don’t like thi sort of email. Lets keep an eye on them, but don’t surface them unless urgent. Also, can you scan my emails for anything I missed today? Especially from sundar.
+Seamless Onboarding & Viral Growth: New users simply start emailing or CC'ing cc@life.ai. When CC'd on a thread, CC can subtly introduce its capabilities, making discovery organic and viral.
+Proposal:
+CC: Your Life AI is an intelligent assistant, primarily accessed by emailing/CC'ing it (cc@life.ai or an enterprise equivalent like cc@yourcompany.com), that deeply integrates with Gmail to become your indispensable partner for managing communications, tasks, and knowledge. You can upgrade it to a real webapp or app, but it’s primarily an entity to actively invoke, from within GMail.
+Your Inbox AI: Lives within your email. No new app to download or learn initially. It works on your inbox (organizing, labeling, archiving) and with you (drafting, summarizing, reminding).
+Personalized Context Engine: CC builds a dynamic, private understanding of your communication patterns, social graph (weighted by importance/frequency), priorities, and personal style by analyzing your interactions and (with permission) your email history via the Gmail API. It tracks sentiment and relationship nuances. It also has a view into your calendar and Chat for context, thought the primary objective is GMail. It always operates with FULL CONTEXT of your prior interactions.
+Action & Automation Hub (GTD formula):
+Manages tasks, notes, ideas, and reminders emailed directly or CC'd to it.
+Provides "Todo & Next Step," "Awaiting Response," "Read Later" categorization. Offers the next steps even
+Drafts replies, summarizes threads, ideates solutions, and connects dots across disparate information.
+Executes powerful, bulk Gmail operations through simple natural language commands that it can remember and learn from and make scheduled.
+Programmable & Adaptive (Product RL): Users can guide CC's tone and behavior over time ("be more concise," "prioritize emails from my manager"). CC employs a "Product RL" (Reinforcement Learning from user interaction & feedback) framework, making it a self-improving system that gets more valuable with every interaction and model upgrade. It’s a "Contextualizer" that truly learns you. This is all done via System Instruction. Uses labels and tags to enqueue up emails for review with you
+Future Vision: Evolves with optional web/mobile interfaces for richer, bespoke interactions (e.g., "upgrading" an email from CC to a live chat/doc). Integrates with Calendar, Drive, Chat, and other essential services. Offers specialized "personas" (e.g., legal.cc@, travel.cc@).

@@ -2,7 +2,10 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Separator } from "@/components/ui/separator";
 import { Progress } from "@/components/ui/progress";
-import { Inbox, Star, Clock, Send, FileText, Trash, Edit } from "lucide-react";
+import { 
+  Inbox, Star, Clock, Send, FileText, Trash, Edit, 
+  BrainCircuit, MessageSquare, PenTool, Archive, Search, Command, Users
+} from "lucide-react";
 
 export function Sidebar() {
   const [activeFolder, setActiveFolder] = useState("inbox");
@@ -30,6 +33,14 @@ export function Sidebar() {
     { id: "sent", name: "Sent", Icon: Send, count: 0 },
     { id: "drafts", name: "Drafts", Icon: FileText, count: 0 },
     { id: "trash", name: "Trash", Icon: Trash, count: 0 },
+  ];
+  
+  const aiFeatures = [
+    { id: "brain-dump", name: "Brain Dump & Tasks", Icon: BrainCircuit },
+    { id: "smart-reply", name: "Smart Reply", Icon: MessageSquare },
+    { id: "context-synthesis", name: "Context & Synthesis", Icon: PenTool },
+    { id: "gmail-control", name: "Gmail Control", Icon: Command },
+    { id: "contact-insights", name: "Contact Insights", Icon: Users },
   ];
 
   return (
@@ -68,6 +79,37 @@ export function Sidebar() {
           })}
         </ul>
       </nav>
+      
+      {/* AI Features Section */}
+      <div className="mt-8 px-4">
+        <h3 className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-2">AI Features</h3>
+        <ul>
+          {aiFeatures.map((feature) => {
+            const IconComponent = feature.Icon;
+            return (
+              <li key={feature.id}>
+                <a 
+                  href="#"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    // Handle AI feature click
+                    setActiveFolder(feature.id);
+                  }}
+                  className={`flex items-center px-4 py-2 text-gray-800 ${
+                    activeFolder === feature.id 
+                      ? "bg-purple-50 border-r-4 border-purple-500" 
+                      : "hover:bg-gray-100"
+                  } rounded-lg`}
+                >
+                  <IconComponent className="mr-3 text-purple-600 h-5 w-5" />
+                  <span>{feature.name}</span>
+                  <span className="ml-auto text-xs text-purple-500 font-medium">New</span>
+                </a>
+              </li>
+            );
+          })}
+        </ul>
+      </div>
       
       {labels && labels.length > 0 && (
         <div className="mt-8 px-4">
