@@ -7,7 +7,12 @@ import {
   BrainCircuit, MessageSquare, PenTool, Archive, Search, Command, Users
 } from "lucide-react";
 
-export function Sidebar() {
+interface SidebarProps {
+  onFeatureSelect?: (featureId: string) => void;
+  activeFeature?: string | null;
+}
+
+export function Sidebar({ onFeatureSelect, activeFeature }: SidebarProps) {
   const [activeFolder, setActiveFolder] = useState("inbox");
 
   // Fetch labels
@@ -63,8 +68,12 @@ export function Sidebar() {
                   onClick={(e) => {
                     e.preventDefault();
                     setActiveFolder(folder.id);
+                    // When a regular folder is clicked, deselect any active feature
+                    if (onFeatureSelect) {
+                      onFeatureSelect('');
+                    }
                   }}
-                  className={`flex items-center px-4 py-2 text-gray-800 ${activeFolder === folder.id ? "bg-blue-50 border-r-4 border-blue-500" : "hover:bg-gray-100"}`}
+                  className={`flex items-center px-4 py-2 text-gray-800 ${activeFolder === folder.id && !activeFeature ? "bg-blue-50 border-r-4 border-blue-500" : "hover:bg-gray-100"}`}
                 >
                   <IconComponent className="mr-3 text-gray-600 h-5 w-5" />
                   <span>{folder.name}</span>
@@ -86,17 +95,27 @@ export function Sidebar() {
         <ul>
           {aiFeatures.map((feature) => {
             const IconComponent = feature.Icon;
+            const isActive = activeFeature === feature.id;
+            
             return (
               <li key={feature.id}>
                 <a 
                   href="#"
                   onClick={(e) => {
                     e.preventDefault();
-                    // Handle AI feature click
-                    setActiveFolder(feature.id);
+                    // If this feature is already active, deactivate it
+                    if (isActive && onFeatureSelect) {
+                      onFeatureSelect('');
+                      setActiveFolder('inbox');
+                    } 
+                    // Otherwise activate this feature
+                    else if (onFeatureSelect) {
+                      onFeatureSelect(feature.id);
+                      setActiveFolder('');
+                    }
                   }}
                   className={`flex items-center px-4 py-2 text-gray-800 ${
-                    activeFolder === feature.id 
+                    isActive
                       ? "bg-purple-50 border-r-4 border-purple-500" 
                       : "hover:bg-gray-100"
                   } rounded-lg`}

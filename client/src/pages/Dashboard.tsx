@@ -148,14 +148,31 @@ export default function Dashboard() {
     );
   }
 
+  // State to track the active feature (from sidebar)
+  const [activeFeature, setActiveFeature] = useState<string | null>(null);
+  
+  // Callback function to handle feature selection from sidebar
+  const handleFeatureSelect = (featureId: string) => {
+    setActiveFeature(featureId);
+  };
+  
   return (
     <div className="h-screen flex flex-col">
       <Header user={user} onSignOut={handleSignOut} />
       
       <main className="flex-1 flex overflow-hidden">
-        <Sidebar />
-        <EmailList onEmailsLoaded={setEmails} />
-        <AISidebar emails={emails} />
+        <Sidebar onFeatureSelect={handleFeatureSelect} activeFeature={activeFeature} />
+        
+        {activeFeature ? (
+          <div className="flex-1 overflow-y-auto">
+            <FeatureContainer activeFeature={activeFeature} />
+          </div>
+        ) : (
+          <>
+            <EmailList onEmailsLoaded={setEmails} />
+            <AISidebar emails={emails} />
+          </>
+        )}
       </main>
       
       {syncStatus && syncStatus.isActive && (
