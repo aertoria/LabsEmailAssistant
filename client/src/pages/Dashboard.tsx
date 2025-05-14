@@ -7,6 +7,7 @@ import { AISidebar } from "@/components/AISidebar";
 import { SyncStatus } from "@/components/SyncStatus";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/useAuth";
+import { FeatureContainer } from "@/components/features/FeatureContainer";
 
 export default function Dashboard() {
   const { isAuthenticated: authProviderAuthenticated, user: authUser, signOut } = useAuth();
