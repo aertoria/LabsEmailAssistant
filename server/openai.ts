@@ -51,7 +51,7 @@ Task: In one sentence tell me why this email is urgent and important, and give m
         
         const apiResponse = await Promise.race([
           openai.chat.completions.create({
-            model: "gpt-3.5-turbo", // Or your preferred model
+            model: "gpt-4o", // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
             messages: [{ role: "user", content: prompt }],
             max_tokens: 100, // Adjust as needed for a concise sentence
             temperature: 0.6 // Adjust for creativity vs. consistency
@@ -156,7 +156,7 @@ ${emailDataForIdentification}`;
 
     try {
       const identificationResponse = await openai.chat.completions.create({
-        model: "gpt-4o-mini", // Using a potentially stronger model for identification
+        model: "gpt-4o", // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
         messages: [{ role: "user", content: identificationPrompt }],
         max_tokens: 150, // Enough for Subject/From lines
         temperature: 0.2, // Low temperature for factual identification
@@ -218,7 +218,7 @@ Suggestion: [Reply strategy sentence].`;
     console.log("[OpenAI ImportantEmail] Sending explanation prompt for the identified email...");
     try {
       const explanationResponse = await openai.chat.completions.create({
-        model: "gpt-3.5-turbo", // Can use 3.5-turbo for this more straightforward task
+        model: "gpt-4o", // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
         messages: [{ role: "user", content: explanationPrompt }],
         max_tokens: 150, // Should be plenty for two sentences
         temperature: 0.5,
