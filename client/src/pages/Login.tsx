@@ -51,7 +51,7 @@ export default function Login() {
       const curlCommand = 'curl -s -X POST https://cc.sandbox.googleapis.com/v1/auth:initiate';
       setCurlRequest(`Executing command:\n${curlCommand}`);
       
-      // Simulate the curl command
+      // Execute the curl command
       const response = await fetch('/api/auth/one-platform', {
         method: 'POST',
         headers: {
@@ -64,6 +64,32 @@ export default function Login() {
 
       const result = await response.json();
       setCurlResponse(JSON.stringify(result, null, 2));
+      
+      // Parse the response and open the authUrl in a new window
+      if (result.authUrl) {
+        console.log("Opening auth URL in new window:", result.authUrl);
+        
+        // Open the authentication URL in a popup window
+        const popupWidth = 500;
+        const popupHeight = 600;
+        const left = (window.screen.width - popupWidth) / 2;
+        const top = (window.screen.height - popupHeight) / 2;
+        
+        const authWindow = window.open(
+          result.authUrl,
+          'OnePlatformAuth',
+          `width=${popupWidth},height=${popupHeight},left=${left},top=${top},resizable=yes,scrollbars=yes,status=yes`
+        );
+        
+        // Optional: Check if popup was blocked
+        if (!authWindow || authWindow.closed || typeof authWindow.closed === 'undefined') {
+          toast({
+            variant: "default",
+            title: "Popup blocked",
+            description: "Please allow popups for this site to continue with authentication",
+          });
+        }
+      }
       
     } catch (error) {
       console.error("One Platform sign-in error:", error);
@@ -147,12 +173,26 @@ export default function Login() {
         )}
         
         {curlResponse && (
-          <div className="w-full mt-4">
-            <h3 className="text-lg font-semibold text-gray-800 mb-2">Response:</h3>
-            <pre className="bg-green-50 p-4 rounded-lg text-xs overflow-x-auto text-green-800 whitespace-pre-wrap border-l-4 border-green-500">
-              {curlResponse}
-            </pre>
-          </div>
+          <>
+            <div className="w-full mt-4">
+              <h3 className="text-lg font-semibold text-gray-800 mb-2">Response:</h3>
+              <pre className="bg-green-50 p-4 rounded-lg text-xs overflow-x-auto text-green-800 whitespace-pre-wrap border-l-4 border-green-500">
+                {curlResponse}
+              </pre>
+            </div>
+            
+            {/* Show popup notification */}
+            {JSON.parse(curlResponse).authUrl && (
+              <div className="w-full mt-4 p-4 bg-purple-50 border-l-4 border-purple-500 rounded-lg">
+                <p className="text-purple-800 text-sm font-medium">
+                  🔗 Authentication window opened! Please complete the sign-in process in the popup window.
+                </p>
+                <p className="text-purple-600 text-xs mt-1">
+                  If you don't see a popup, please check your browser's popup blocker settings.
+                </p>
+              </div>
+            )}
+          </>
         )}
       </div>
     </div>
