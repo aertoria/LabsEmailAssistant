@@ -182,6 +182,28 @@ export function setupAuth(app: Express, storage: IStorage) {
     }
   });
 
+  // One Platform authentication endpoint - placed before auth middleware
+  app.post("/api/auth/one-platform", async (req: Request, res: Response) => {
+    console.log("✓ One Platform endpoint hit successfully!");
+    
+    // Simulate the JSON response from the One Platform API
+    const curlResponse = {
+      "auth_url": "https://cc.sandbox.googleapis.com/v1/auth/callback?state=" + Math.random().toString(36).substring(2, 15),
+      "session_id": "onep_sess_" + Math.random().toString(36).substring(2, 15),
+      "access_token": "onep_at_" + Math.random().toString(36).substring(2, 20),
+      "token_type": "Bearer",
+      "expires_in": 3600,
+      "refresh_token": "onep_rt_" + Math.random().toString(36).substring(2, 20),
+      "scope": "email profile gmail.readonly gmail.modify",
+      "user_id": "user_" + Math.random().toString(36).substring(2, 10),
+      "platform": "one_platform_sandbox",
+      "timestamp": new Date().toISOString(),
+      "request_id": "req_" + Math.random().toString(36).substring(2, 15)
+    };
+    
+    res.json(curlResponse);
+  });
+
   // Auth middleware (applies only to /api routes)
   app.use('/api', async (req: Request, res: Response, next: NextFunction) => {
     // Allow unauthenticated access to public auth endpoints
@@ -193,6 +215,8 @@ export function setupAuth(app: Express, storage: IStorage) {
       '/api/auth/one-platform',
       '/api/auth/logout',
     ];
+
+    console.log(`Auth middleware: ${req.method} ${req.path}, isPublic: ${publicPaths.includes(req.path)}`);
 
     if (publicPaths.includes(req.path)) {
       return next();
@@ -367,61 +391,5 @@ export function setupAuth(app: Express, storage: IStorage) {
         message: "Successfully logged out",
       });
     });
-  });
-
-  // One Platform authentication endpoint
-  app.post("/api/auth/one-platform", async (req: Request, res: Response) => {
-    try {
-      const { command } = req.body;
-      
-      // Simulate the curl command execution
-      const curlCommand = "curl -s -X POST https://cc.sandbox.googleapis.com/v1/auth:initiate";
-      
-      if (command === curlCommand) {
-        // Simulate a successful response from the One Platform API
-        const simulatedResponse = {
-          status: "success",
-          message: "One Platform authentication initiated successfully",
-          execution: {
-            command_executed: curlCommand,
-            method: "POST",
-            endpoint: "https://cc.sandbox.googleapis.com/v1/auth:initiate",
-            execution_time: Math.floor(Math.random() * 500) + 100 + "ms"
-          },
-          data: {
-            auth_url: "https://cc.sandbox.googleapis.com/v1/auth/callback",
-            session_id: "onep_sess_" + Math.random().toString(36).substring(2, 15),
-            access_token: "onep_at_" + Math.random().toString(36).substring(2, 20),
-            expires_in: 3600,
-            scopes: ["email", "profile", "gmail.readonly", "gmail.modify"],
-            platform: "one_platform_sandbox",
-            user_id: "user_" + Math.random().toString(36).substring(2, 10)
-          },
-          metadata: {
-            timestamp: new Date().toISOString(),
-            server: "cc.sandbox.googleapis.com",
-            api_version: "v1",
-            request_id: "req_" + Math.random().toString(36).substring(2, 15)
-          }
-        };
-        
-        res.json(simulatedResponse);
-      } else {
-        // Invalid command
-        res.status(400).json({
-          error: "Invalid command",
-          expected: curlCommand,
-          received: command,
-          timestamp: new Date().toISOString()
-        });
-      }
-    } catch (error) {
-      console.error("One Platform auth error:", error);
-      res.status(500).json({
-        error: "Internal server error",
-        message: error instanceof Error ? error.message : "Unknown error",
-        timestamp: new Date().toISOString()
-      });
-    }
   });
 }
