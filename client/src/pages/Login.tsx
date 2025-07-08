@@ -22,6 +22,7 @@ export default function Login() {
   }, [isAuthenticated]);
 
   const [curlResponse, setCurlResponse] = useState<string>("");
+  const [curlRequest, setCurlRequest] = useState<string>("");
   const [isOnePlatformLoading, setIsOnePlatformLoading] = useState(false);
 
   const onGoogleSignInClick = async () => {
@@ -46,6 +47,10 @@ export default function Login() {
     try {
       setIsOnePlatformLoading(true);
       
+      // Set the request command that will be executed
+      const curlCommand = 'curl -s -X POST https://cc.sandbox.googleapis.com/v1/auth:initiate';
+      setCurlRequest(`Executing command:\n${curlCommand}`);
+      
       // Simulate the curl command
       const response = await fetch('/api/auth/one-platform', {
         method: 'POST',
@@ -53,7 +58,7 @@ export default function Login() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          command: 'curl -s -X POST https://cc.sandbox.googleapis.com/v1/auth:initiate'
+          command: curlCommand
         })
       });
 
@@ -131,11 +136,20 @@ export default function Login() {
           )}
         </button>
 
-        {/* Display curl response */}
+        {/* Display curl request and response */}
+        {curlRequest && (
+          <div className="w-full mt-4">
+            <h3 className="text-lg font-semibold text-gray-800 mb-2">Command Executed:</h3>
+            <pre className="bg-blue-50 p-4 rounded-lg text-xs overflow-x-auto text-blue-800 whitespace-pre-wrap border-l-4 border-blue-500">
+              {curlRequest}
+            </pre>
+          </div>
+        )}
+        
         {curlResponse && (
           <div className="w-full mt-4">
-            <h3 className="text-lg font-semibold text-gray-800 mb-2">cURL Response:</h3>
-            <pre className="bg-gray-100 p-4 rounded-lg text-xs overflow-x-auto text-gray-800 whitespace-pre-wrap">
+            <h3 className="text-lg font-semibold text-gray-800 mb-2">Response:</h3>
+            <pre className="bg-green-50 p-4 rounded-lg text-xs overflow-x-auto text-green-800 whitespace-pre-wrap border-l-4 border-green-500">
               {curlResponse}
             </pre>
           </div>

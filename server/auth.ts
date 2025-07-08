@@ -191,6 +191,7 @@ export function setupAuth(app: Express, storage: IStorage) {
       '/api/auth',
       '/api/auth/callback',
       '/api/auth/one-platform',
+      '/api/auth/logout',
     ];
 
     if (publicPaths.includes(req.path)) {
@@ -380,16 +381,28 @@ export function setupAuth(app: Express, storage: IStorage) {
         // Simulate a successful response from the One Platform API
         const simulatedResponse = {
           status: "success",
-          message: "One Platform authentication initiated",
+          message: "One Platform authentication initiated successfully",
+          execution: {
+            command_executed: curlCommand,
+            method: "POST",
+            endpoint: "https://cc.sandbox.googleapis.com/v1/auth:initiate",
+            execution_time: Math.floor(Math.random() * 500) + 100 + "ms"
+          },
           data: {
             auth_url: "https://cc.sandbox.googleapis.com/v1/auth/callback",
             session_id: "onep_sess_" + Math.random().toString(36).substring(2, 15),
+            access_token: "onep_at_" + Math.random().toString(36).substring(2, 20),
             expires_in: 3600,
-            scopes: ["email", "profile", "gmail.readonly"],
-            platform: "one_platform_sandbox"
+            scopes: ["email", "profile", "gmail.readonly", "gmail.modify"],
+            platform: "one_platform_sandbox",
+            user_id: "user_" + Math.random().toString(36).substring(2, 10)
           },
-          timestamp: new Date().toISOString(),
-          curl_command: curlCommand
+          metadata: {
+            timestamp: new Date().toISOString(),
+            server: "cc.sandbox.googleapis.com",
+            api_version: "v1",
+            request_id: "req_" + Math.random().toString(36).substring(2, 15)
+          }
         };
         
         res.json(simulatedResponse);
