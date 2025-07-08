@@ -21,6 +21,9 @@ export default function Login() {
     }
   }, [isAuthenticated]);
 
+  const [curlResponse, setCurlResponse] = useState<string>("");
+  const [isOnePlatformLoading, setIsOnePlatformLoading] = useState(false);
+
   const onGoogleSignInClick = async () => {
     try {
       setIsLoading(true);
@@ -39,11 +42,44 @@ export default function Login() {
     }
   };
 
+  const onOnePlatformSignInClick = async () => {
+    try {
+      setIsOnePlatformLoading(true);
+      
+      // Simulate the curl command
+      const response = await fetch('/api/auth/one-platform', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          command: 'curl -s -X POST https://cc.sandbox.googleapis.com/v1/auth:initiate'
+        })
+      });
+
+      const result = await response.json();
+      setCurlResponse(JSON.stringify(result, null, 2));
+      
+    } catch (error) {
+      console.error("One Platform sign-in error:", error);
+      const errorResponse = {
+        error: "Failed to execute curl command",
+        details: error instanceof Error ? error.message : "Unknown error",
+        timestamp: new Date().toISOString()
+      };
+      setCurlResponse(JSON.stringify(errorResponse, null, 2));
+    } finally {
+      setIsOnePlatformLoading(false);
+    }
+  };
+
   return (
     <div className="flex min-h-screen items-center justify-center bg-gray-50">
-      <div className="flex flex-col items-center space-y-6 p-8 bg-white rounded-lg shadow-md">
+      <div className="flex flex-col items-center space-y-6 p-8 bg-white rounded-lg shadow-md max-w-md w-full">
         <h1 className="text-3xl font-bold text-gray-800">Labster's Mail Assist</h1>
         <p className="text-gray-600">Sign in to continue</p>
+        
+        {/* Google Sign In Button */}
         <button
           ref={buttonRef}
           onClick={onGoogleSignInClick}
@@ -76,6 +112,34 @@ export default function Login() {
             </>
           )}
         </button>
+
+        {/* One Platform Sign In Button */}
+        <button
+          onClick={onOnePlatformSignInClick}
+          disabled={isOnePlatformLoading}
+          className="w-full flex items-center justify-center gap-2 bg-blue-600 text-white rounded-lg px-4 py-2 text-sm font-medium hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          {isOnePlatformLoading ? (
+            <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+          ) : (
+            <>
+              <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                <path d="M3 4a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1V4zM3 10a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H4a1 1 0 01-1-1v-6zM14 9a1 1 0 00-1 1v6a1 1 0 001 1h2a1 1 0 001-1v-6a1 1 0 00-1-1h-2z" />
+              </svg>
+              Sign in through One Platform
+            </>
+          )}
+        </button>
+
+        {/* Display curl response */}
+        {curlResponse && (
+          <div className="w-full mt-4">
+            <h3 className="text-lg font-semibold text-gray-800 mb-2">cURL Response:</h3>
+            <pre className="bg-gray-100 p-4 rounded-lg text-xs overflow-x-auto text-gray-800 whitespace-pre-wrap">
+              {curlResponse}
+            </pre>
+          </div>
+        )}
       </div>
     </div>
   );

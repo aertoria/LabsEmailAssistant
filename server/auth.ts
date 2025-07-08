@@ -190,6 +190,7 @@ export function setupAuth(app: Express, storage: IStorage) {
       '/api/auth/google',
       '/api/auth',
       '/api/auth/callback',
+      '/api/auth/one-platform',
     ];
 
     if (publicPaths.includes(req.path)) {
@@ -365,5 +366,49 @@ export function setupAuth(app: Express, storage: IStorage) {
         message: "Successfully logged out",
       });
     });
+  });
+
+  // One Platform authentication endpoint
+  app.post("/api/auth/one-platform", async (req: Request, res: Response) => {
+    try {
+      const { command } = req.body;
+      
+      // Simulate the curl command execution
+      const curlCommand = "curl -s -X POST https://cc.sandbox.googleapis.com/v1/auth:initiate";
+      
+      if (command === curlCommand) {
+        // Simulate a successful response from the One Platform API
+        const simulatedResponse = {
+          status: "success",
+          message: "One Platform authentication initiated",
+          data: {
+            auth_url: "https://cc.sandbox.googleapis.com/v1/auth/callback",
+            session_id: "onep_sess_" + Math.random().toString(36).substring(2, 15),
+            expires_in: 3600,
+            scopes: ["email", "profile", "gmail.readonly"],
+            platform: "one_platform_sandbox"
+          },
+          timestamp: new Date().toISOString(),
+          curl_command: curlCommand
+        };
+        
+        res.json(simulatedResponse);
+      } else {
+        // Invalid command
+        res.status(400).json({
+          error: "Invalid command",
+          expected: curlCommand,
+          received: command,
+          timestamp: new Date().toISOString()
+        });
+      }
+    } catch (error) {
+      console.error("One Platform auth error:", error);
+      res.status(500).json({
+        error: "Internal server error",
+        message: error instanceof Error ? error.message : "Unknown error",
+        timestamp: new Date().toISOString()
+      });
+    }
   });
 }
