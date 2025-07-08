@@ -176,9 +176,23 @@ export function setupAuth(app: Express, storage: IStorage) {
       console.log(`User ${user.id} (${user.email}) successfully authenticated and session established`);
 
       return res.status(200).json({ user });
-    } catch (err) {
+    } catch (err: any) {
       console.error("Error during Google authentication:", err);
-      next(err);
+      
+      // Extract detailed error information for debugging
+      const errorResponse = {
+        message: err.message || "Authentication failed",
+        error: err.response?.data?.error || err.code || "unknown_error",
+        error_description: err.response?.data?.error_description || err.response?.statusText || "Unknown error occurred",
+        status: err.response?.status || err.status || 500,
+        details: {
+          config: err.config?.url ? { url: err.config.url, method: err.config.method } : undefined,
+          response: err.response?.data || undefined,
+          timestamp: new Date().toISOString()
+        }
+      };
+      
+      return res.status(errorResponse.status).json(errorResponse);
     }
   });
 

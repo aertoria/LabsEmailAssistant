@@ -33,6 +33,23 @@ export default function Login() {
       await handleGoogleSignIn();
     } catch (error) {
       console.error("Google sign-in error:", error);
+      
+      // Display error in the authorization field box for debugging
+      const errorDetails = {
+        timestamp: new Date().toISOString(),
+        error: error instanceof Error ? error.message : "Unknown error",
+        type: "Google Sign-In Error",
+        response: (error as any)?.response || null,
+        fullError: {
+          message: error instanceof Error ? error.message : "Unknown error",
+          stack: error instanceof Error ? error.stack : undefined,
+          ...(error as any)
+        }
+      };
+      
+      setCurlRequest("Google OAuth Authentication");
+      setCurlResponse(JSON.stringify(errorDetails, null, 2));
+      
       toast({
         variant: "destructive",
         title: "Authentication failed",

@@ -140,7 +140,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             });
 
             if (!response.ok) {
-              throw new Error('Authentication failed');
+              const errorData = await response.json();
+              const error = new Error(errorData.message || 'Authentication failed');
+              (error as any).response = errorData;
+              throw error;
             }
 
             const data = await response.json();
