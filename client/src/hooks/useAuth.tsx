@@ -196,7 +196,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             }
             
             toast.success(`Welcome, ${data.user.name || data.user.email}!`);
-            setLocation('/dashboard');
+            
+            // Force redirect to dashboard
+            setTimeout(() => {
+              window.location.href = '/dashboard';
+            }, 100);
+            
             resolve();
           } catch (error) {
             console.error('Authentication error:', error);

@@ -105,6 +105,63 @@ export default function Login() {
             title: "Popup blocked",
             description: "Please allow popups for this site to continue with authentication",
           });
+        } else {
+          // Add visual indicator that authentication is in progress
+          toast({
+            variant: "default",
+            title: "Authentication in progress",
+            description: "Complete the sign-in process in the popup window",
+          });
+          
+          // Poll to check if the popup window is closed
+          const checkInterval = setInterval(async () => {
+            if (authWindow.closed) {
+              clearInterval(checkInterval);
+              setIsOnePlatformLoading(false);
+              
+              // Check if authentication was successful
+              try {
+                const response = await fetch('/api/auth/status', {
+                  credentials: 'include'
+                });
+                
+                if (response.ok) {
+                  const data = await response.json();
+                  if (data.authenticated) {
+                    toast({
+                      variant: "default",
+                      title: "Authentication successful",
+                      description: "Redirecting to dashboard...",
+                    });
+                    
+                    // Redirect to dashboard
+                    setTimeout(() => {
+                      window.location.href = '/dashboard';
+                    }, 500);
+                  } else {
+                    toast({
+                      variant: "default",
+                      title: "Authentication incomplete",
+                      description: "Please try signing in again",
+                    });
+                  }
+                }
+              } catch (error) {
+                console.error("Error checking auth status:", error);
+                toast({
+                  variant: "destructive",
+                  title: "Authentication error",
+                  description: "Please try signing in again",
+                });
+              }
+            }
+          }, 1000); // Check every second
+          
+          // Clean up interval after 5 minutes to prevent memory leak
+          setTimeout(() => {
+            clearInterval(checkInterval);
+            setIsOnePlatformLoading(false);
+          }, 5 * 60 * 1000);
         }
       }
       
