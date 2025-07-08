@@ -28,7 +28,15 @@ export default function Login() {
   const onGoogleSignInClick = async () => {
     try {
       setIsLoading(true);
+      setCurlRequest(null);
+      setCurlResponse(null);
       
+      // Show loading message
+      toast({
+        variant: "default",
+        title: "Initiating Google sign-in",
+        description: "Opening authentication window...",
+      });
       
       await handleGoogleSignIn();
     } catch (error) {
@@ -113,47 +121,63 @@ export default function Login() {
             description: "Complete the sign-in process in the popup window",
           });
           
-          // Poll to check if the popup window is closed
+          // Since One Platform uses Google's sandbox redirect, we need to
+          // extract the authorization code from the URL after redirect
+          // For now, we'll monitor the popup and extract the code
           const checkInterval = setInterval(async () => {
-            if (authWindow.closed) {
-              clearInterval(checkInterval);
-              setIsOnePlatformLoading(false);
-              
-              // Check if authentication was successful
-              try {
-                const response = await fetch('/api/auth/status', {
-                  credentials: 'include'
-                });
+            try {
+              // Check if we can access the popup URL (will fail due to CORS if on Google domain)
+              if (authWindow.closed) {
+                clearInterval(checkInterval);
+                setIsOnePlatformLoading(false);
                 
-                if (response.ok) {
-                  const data = await response.json();
-                  if (data.authenticated) {
-                    toast({
-                      variant: "default",
-                      title: "Authentication successful",
-                      description: "Redirecting to dashboard...",
-                    });
-                    
-                    // Redirect to dashboard
-                    setTimeout(() => {
-                      window.location.href = '/dashboard';
-                    }, 500);
-                  } else {
-                    toast({
-                      variant: "default",
-                      title: "Authentication incomplete",
-                      description: "Please try signing in again",
-                    });
-                  }
-                }
-              } catch (error) {
-                console.error("Error checking auth status:", error);
+                // After popup closes, check if authentication succeeded
                 toast({
-                  variant: "destructive",
-                  title: "Authentication error",
-                  description: "Please try signing in again",
+                  variant: "default", 
+                  title: "Authentication window closed",
+                  description: "The One Platform flow redirects to Google's sandbox URL. Please use the regular 'Sign in with Google' button for full authentication.",
                 });
+              } else {
+                // Try to check the URL (this will only work when on our domain)
+                try {
+                  const popupUrl = authWindow.location.href;
+                  // Check if URL contains our callback with code
+                  if (popupUrl.includes('code=')) {
+                    clearInterval(checkInterval);
+                    authWindow.close();
+                    
+                    // Extract code from URL
+                    const urlParams = new URLSearchParams(popupUrl.split('?')[1]);
+                    const code = urlParams.get('code');
+                    
+                    if (code) {
+                      // Exchange code for tokens
+                      const response = await fetch('/api/auth/google', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ code }),
+                        credentials: 'include',
+                      });
+                      
+                      if (response.ok) {
+                        toast({
+                          variant: "default",
+                          title: "Authentication successful",
+                          description: "Redirecting to dashboard...",
+                        });
+                        
+                        setTimeout(() => {
+                          window.location.href = '/dashboard';
+                        }, 500);
+                      }
+                    }
+                  }
+                } catch (e) {
+                  // Can't access popup URL due to CORS - this is expected
+                }
               }
+            } catch (error) {
+              console.error("Error monitoring auth window:", error);
             }
           }, 1000); // Check every second
           
