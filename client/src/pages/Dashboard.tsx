@@ -17,6 +17,14 @@ export default function Dashboard() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [emails, setEmails] = useState<any[]>([]);
   
+  // State to track the active feature (from sidebar)
+  const [activeFeature, setActiveFeature] = useState<string | null>(null);
+
+  // Callback function to handle feature selection from sidebar
+  const handleFeatureSelect = (featureId: string) => {
+    setActiveFeature(featureId);
+  };
+  
   // Check auth status once at initialization
   useEffect(() => {
     if (initialized) return;
@@ -147,14 +155,6 @@ export default function Dashboard() {
       </div>
     );
   }
-
-  // State to track the active feature (from sidebar)
-  const [activeFeature, setActiveFeature] = useState<string | null>(null);
-  
-  // Callback function to handle feature selection from sidebar
-  const handleFeatureSelect = (featureId: string) => {
-    setActiveFeature(featureId);
-  };
   
   return (
     <div className="h-screen flex flex-col">

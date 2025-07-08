@@ -21,8 +21,8 @@ export default function Login() {
     }
   }, [isAuthenticated]);
 
-  const [curlResponse, setCurlResponse] = useState<string>("");
-  const [curlRequest, setCurlRequest] = useState<string>("");
+  const [curlResponse, setCurlResponse] = useState<string | null>("");
+  const [curlRequest, setCurlRequest] = useState<string | null>("");
   const [isOnePlatformLoading, setIsOnePlatformLoading] = useState(false);
 
   const onGoogleSignInClick = async () => {
