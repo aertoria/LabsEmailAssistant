@@ -186,22 +186,40 @@ export function setupAuth(app: Express, storage: IStorage) {
   app.post("/api/auth/one-platform", async (req: Request, res: Response) => {
     console.log("✓ One Platform endpoint hit successfully!");
     
-    // Simulate the JSON response from the One Platform API
-    const curlResponse = {
-      "auth_url": "https://cc.sandbox.googleapis.com/v1/auth/callback?state=" + Math.random().toString(36).substring(2, 15),
-      "session_id": "onep_sess_" + Math.random().toString(36).substring(2, 15),
-      "access_token": "onep_at_" + Math.random().toString(36).substring(2, 20),
-      "token_type": "Bearer",
-      "expires_in": 3600,
-      "refresh_token": "onep_rt_" + Math.random().toString(36).substring(2, 20),
-      "scope": "email profile gmail.readonly gmail.modify",
-      "user_id": "user_" + Math.random().toString(36).substring(2, 10),
-      "platform": "one_platform_sandbox",
-      "timestamp": new Date().toISOString(),
-      "request_id": "req_" + Math.random().toString(36).substring(2, 15)
-    };
-    
-    res.json(curlResponse);
+    try {
+      // Execute the exact curl command
+      const response = await fetch('https://cc.sandbox.googleapis.com/v1/auth:initiate', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      const responseText = await response.text();
+      let curlResponse;
+      
+      try {
+        curlResponse = JSON.parse(responseText);
+      } catch (e) {
+        // If response is not JSON, return the raw text
+        curlResponse = {
+          raw_response: responseText,
+          status_code: response.status,
+          status_text: response.statusText
+        };
+      }
+      
+      console.log("One Platform API response:", curlResponse);
+      res.json(curlResponse);
+      
+    } catch (error) {
+      console.error("Error executing curl command:", error);
+      res.json({
+        error: "Failed to execute curl command",
+        message: error instanceof Error ? error.message : "Unknown error",
+        curl_command: "curl -s -X POST https://cc.sandbox.googleapis.com/v1/auth:initiate"
+      });
+    }
   });
 
   // Auth middleware (applies only to /api routes)
