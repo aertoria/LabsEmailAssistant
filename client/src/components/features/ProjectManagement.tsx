@@ -54,13 +54,10 @@ export function ProjectManagement() {
     queryKey: ['/api/ai/project-clusters'],
     enabled: !!emailsData?.messages,
     queryFn: async () => {
-      const response = await apiRequest('/api/ai/project-clusters', {
-        method: 'POST',
-        body: JSON.stringify({
-          emails: emailsData?.messages || []
-        })
+      const response = await apiRequest('POST', '/api/ai/project-clusters', {
+        emails: emailsData?.messages || []
       });
-      return response as ProjectCluster[];
+      return response.json() as Promise<ProjectCluster[]>;
     }
   });
 
