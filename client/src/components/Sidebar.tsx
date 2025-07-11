@@ -4,7 +4,7 @@ import { Separator } from "@/components/ui/separator";
 import { Progress } from "@/components/ui/progress";
 import { 
   Inbox, Star, Clock, Send, FileText, Trash, Edit, 
-  BrainCircuit, MessageSquare, PenTool, Archive, Search, Command, Users,
+  Archive, Search,
   FolderKanban
 } from "lucide-react";
 
@@ -44,13 +44,7 @@ export function Sidebar({ onFeatureSelect, activeFeature, onFolderSelect, active
     { id: "trash", name: "Trash", Icon: Trash, count: 0 },
   ];
   
-  const aiFeatures = [
-    { id: "brain-dump", name: "Brain Dump & Tasks", Icon: BrainCircuit },
-    { id: "smart-reply", name: "Smart Reply", Icon: MessageSquare },
-    { id: "context-synthesis", name: "Context & Synthesis", Icon: PenTool },
-    { id: "gmail-control", name: "Gmail Control", Icon: Command },
-    { id: "contact-insights", name: "Contact Insights", Icon: Users },
-  ];
+  
 
   return (
     <aside className="w-64 bg-white border-r border-gray-300 flex-shrink-0 hidden md:block overflow-y-auto">
@@ -97,46 +91,7 @@ export function Sidebar({ onFeatureSelect, activeFeature, onFolderSelect, active
         </ul>
       </nav>
       
-      {/* AI Features Section */}
-      <div className="mt-8 px-4">
-        <h3 className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-2">AI Features</h3>
-        <ul>
-          {aiFeatures.map((feature) => {
-            const IconComponent = feature.Icon;
-            const isActive = activeFeature === feature.id;
-            
-            return (
-              <li key={feature.id}>
-                <a 
-                  href="#"
-                  onClick={(e) => {
-                    e.preventDefault();
-                    // If this feature is already active, deactivate it
-                    if (isActive && onFeatureSelect) {
-                      onFeatureSelect('');
-                      setActiveFolder('inbox');
-                    } 
-                    // Otherwise activate this feature
-                    else if (onFeatureSelect) {
-                      onFeatureSelect(feature.id);
-                      setActiveFolder('');
-                    }
-                  }}
-                  className={`flex items-center px-4 py-2 text-gray-800 ${
-                    isActive
-                      ? "bg-purple-50 border-r-4 border-purple-500" 
-                      : "hover:bg-gray-100"
-                  } rounded-lg`}
-                >
-                  <IconComponent className="mr-3 text-purple-600 h-5 w-5" />
-                  <span>{feature.name}</span>
-                  <span className="ml-auto text-xs text-purple-500 font-medium">New</span>
-                </a>
-              </li>
-            );
-          })}
-        </ul>
-      </div>
+      
       
       {labels && labels.length > 0 && (
         <div className="mt-8 px-4">
