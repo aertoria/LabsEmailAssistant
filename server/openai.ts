@@ -453,4 +453,98 @@ export function setupOpenAI(app: any, storage: IStorage) {
       });
     }
   });
+
+  // Extract topic keywords from emails for evolution visualization
+  app.post("/api/ai/extract-topics", async (req: Request, res: Response) => {
+    try {
+      const { emails } = req.body;
+      
+      if (!emails || !Array.isArray(emails)) {
+        return res.status(400).json({ error: 'Emails array is required' });
+      }
+
+      console.log('[API ExtractTopics] Processing', emails.length, 'emails');
+
+      const topicPromises = emails.map(async (email) => {
+        try {
+          const prompt = `Extract 3-5 key topic keywords from this email. Return only the keywords, separated by commas.
+          
+Email Subject: ${email.subject}
+Email Content: ${email.snippet}
+
+Keywords:`;
+
+          const response = await openai.chat.completions.create({
+            model: "gpt-4o", // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
+            messages: [{ role: "user", content: prompt }],
+            max_tokens: 50,
+            temperature: 0.3,
+          });
+
+          const keywords = response.choices[0].message.content?.split(',').map(k => k.trim()).filter(k => k) || [];
+          
+          return {
+            emailId: email.id,
+            date: email.date,
+            keywords: keywords
+          };
+        } catch (error: any) {
+          console.error('[API ExtractTopics] Error processing email:', error.message);
+          return {
+            emailId: email.id,
+            date: email.date,
+            keywords: []
+          };
+        }
+      });
+
+      const topicData = await Promise.all(topicPromises);
+      
+      // Aggregate topics by date and frequency
+      const topicEvolution = processTopicEvolution(topicData);
+      
+      res.json({ topicData, topicEvolution });
+    } catch (error: any) {
+      console.error('[API ExtractTopics] Error:', error);
+      res.status(500).json({ 
+        error: 'Failed to extract topics',
+        details: error.message 
+      });
+    }
+  });
+}
+
+// Helper function to process topic evolution data
+function processTopicEvolution(topicData: any[]) {
+  const evolutionMap = new Map<string, any[]>();
+  
+  // Group by date and aggregate keywords
+  topicData.forEach(item => {
+    const date = new Date(item.date).toISOString().split('T')[0]; // Group by day
+    
+    item.keywords.forEach((keyword: string) => {
+      if (!evolutionMap.has(keyword)) {
+        evolutionMap.set(keyword, []);
+      }
+      
+      const existing = evolutionMap.get(keyword)!.find(e => e.date === date);
+      if (existing) {
+        existing.frequency += 1;
+      } else {
+        evolutionMap.get(keyword)!.push({
+          date,
+          frequency: 1,
+          keyword
+        });
+      }
+    });
+  });
+  
+  // Convert to array format for visualization
+  const evolution = Array.from(evolutionMap.entries()).map(([keyword, data]) => ({
+    keyword,
+    data: data.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
+  }));
+  
+  return evolution;
 }

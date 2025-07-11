@@ -11,6 +11,7 @@ import { apiRequest } from '@/lib/queryClient';
 import { format, differenceInDays } from 'date-fns';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Area, AreaChart } from 'recharts';
 import { motion, AnimatePresence } from "framer-motion";
+import { TopicEvolution } from './TopicEvolution';
 
 interface ProjectCluster {
   id: string;
@@ -964,6 +965,11 @@ export function ProjectManagement() {
               <div>
                 <h3 className="font-medium mb-2">Email Activity Over Time</h3>
                 <EmailActivityChart cluster={selectedCluster} />
+              </div>
+
+              {/* Topic Evolution Chart */}
+              <div>
+                <TopicEvolution emails={selectedCluster.emails} />
               </div>
 
               {/* Mini KPI Dashboard */}
