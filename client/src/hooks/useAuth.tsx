@@ -22,8 +22,8 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-// Store client ID globally
-const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
+// Store client ID globally - trim any whitespace
+const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID?.trim();
 
 if (!googleClientId) {
   console.error('Google Client ID is not configured');

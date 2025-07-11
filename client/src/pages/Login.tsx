@@ -14,7 +14,10 @@ export default function Login() {
   
   // Debug: Log Google Client ID
   useEffect(() => {
-    console.log("Frontend Google Client ID:", import.meta.env.VITE_GOOGLE_CLIENT_ID);
+    const rawClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
+    const trimmedClientId = rawClientId?.trim();
+    console.log("Frontend Google Client ID (raw):", rawClientId);
+    console.log("Frontend Google Client ID (trimmed):", trimmedClientId);
   }, []);
 
   // Redirect if already authenticated
