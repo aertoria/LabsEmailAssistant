@@ -28,6 +28,9 @@ function authFromSession(req: Request) {
 // Setup authentication routes
 export function setupAuth(app: Express, storage: IStorage) {
   const oauth2Client = createOAuth2Client();
+  
+  // Debug: Log Google Client ID
+  console.log("Backend Google Client ID:", process.env.GOOGLE_CLIENT_ID);
 
   // Kick-off login
   app.get("/api/auth", (req: Request, res: Response) => {

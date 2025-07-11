@@ -11,6 +11,11 @@ export default function Login() {
   const { toast } = useToast();
   const buttonRef = useRef<HTMLButtonElement>(null);
   const didRedirect = useRef(false);
+  
+  // Debug: Log Google Client ID
+  useEffect(() => {
+    console.log("Frontend Google Client ID:", import.meta.env.VITE_GOOGLE_CLIENT_ID);
+  }, []);
 
   // Redirect if already authenticated
   useEffect(() => {
