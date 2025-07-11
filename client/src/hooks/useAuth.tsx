@@ -216,35 +216,40 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signOut = async () => {
     try {
-      // If in VM mode, add the demo mode header
-      const headers: Record<string, string> = {};
-      if (isVmMode) {
-        headers['X-Demo-Mode'] = 'true';
-      }
-
-      await fetch('/api/auth/logout', {
-        method: 'POST',
-        credentials: 'include',
-        headers
-      });
-
+      // Clear local state immediately
       setIsAuthenticated(false);
       setUser(null);
       
-      // Only try to use localStorage if we're not in VM mode
-      if (!isVmMode) {
-        try {
-          localStorage.removeItem('gmail_app_user');
-        } catch (e) {
-          console.warn('Could not remove user from localStorage during sign out');
+      // Always clear localStorage regardless of VM mode
+      try {
+        localStorage.removeItem('gmail_app_user');
+      } catch (e) {
+        console.warn('Could not remove user from localStorage during sign out');
+      }
+
+      // Make logout request without demo mode header to ensure session destruction
+      const response = await fetch('/api/auth/logout', {
+        method: 'POST',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json'
         }
+      });
+
+      if (!response.ok) {
+        throw new Error('Logout request failed');
       }
 
       toast.success('Signed out successfully');
-      setLocation('/');
+      
+      // Force page reload to clear all cached state
+      window.location.href = '/';
     } catch (error) {
       console.error('Sign out error:', error);
-      toast.error('Failed to sign out');
+      toast.error('Failed to sign out completely');
+      
+      // Even if server logout fails, clear client state and redirect
+      window.location.href = '/';
     }
   };
 

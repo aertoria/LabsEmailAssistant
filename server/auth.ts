@@ -403,25 +403,19 @@ export function setupAuth(app: Express, storage: IStorage) {
   
   // Logout
   app.post("/api/auth/logout", (req: Request, res: Response) => {
-    // Check for Demo Mode header (used in VM environments), also check hostname
-    const isDemoMode = req.headers['x-demo-mode'] === 'true' || 
-                    req.hostname?.includes('replit.app') || 
-                    req.hostname?.includes('replit.dev');
-    
-    if (isDemoMode) {
-      console.log(`Demo mode detected in logout (${req.hostname}), skipping session destroy`);
-      return res.status(200).json({
-        message: "Successfully logged out (demo mode)",
-      });
-    }
-
+    // Always destroy the session regardless of demo mode
     req.session.destroy((err) => {
       if (err) {
+        console.error('Session destroy error:', err);
         return res.status(500).json({
           message: "Failed to logout",
         });
       }
       
+      // Clear the session cookie
+      res.clearCookie('connect.sid');
+      
+      console.log('User successfully logged out');
       res.status(200).json({
         message: "Successfully logged out",
       });
