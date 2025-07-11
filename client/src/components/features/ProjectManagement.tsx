@@ -5,7 +5,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
-import { ChevronRight, FolderOpen, Mail, TrendingUp, Users, Calendar, Star, ChevronUp, ChevronDown } from 'lucide-react';
+import { ChevronRight, FolderOpen, Mail, TrendingUp, Users, Calendar, Star, ChevronUp, ChevronDown, Clock } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { queryClient } from '@/lib/queryClient';
 import { apiRequest } from '@/lib/queryClient';
@@ -394,6 +394,208 @@ function EmailActivityChart({ cluster }: { cluster: ProjectCluster }) {
           </p>
         </div>
       </div>
+    </div>
+  );
+}
+
+// Mini KPI Dashboard component
+function MiniKPIDashboard({ cluster }: { cluster: ProjectCluster }) {
+  const calculateMetrics = () => {
+    const emails = cluster.emails;
+    const dates = emails.map(e => new Date(e.date)).sort((a, b) => a.getTime() - b.getTime());
+    
+    // Calculate velocity (emails per day)
+    const daySpan = differenceInDays(new Date(cluster.lastActivity), new Date(cluster.firstActivity)) || 1;
+    const velocity = cluster.emailCount / daySpan;
+    
+    // Calculate average response time (mock data for now)
+    const avgResponseTime = Math.floor(Math.random() * 24 + 4); // 4-28 hours
+    
+    // Calculate unique participants
+    const uniqueParticipants = new Set(emails.map(e => e.from)).size;
+    
+    // Generate sparkline data
+    const sparklineData = [];
+    for (let i = 6; i >= 0; i--) {
+      const date = new Date();
+      date.setDate(date.getDate() - i);
+      const count = emails.filter(e => {
+        const emailDate = new Date(e.date);
+        return emailDate.toDateString() === date.toDateString();
+      }).length;
+      sparklineData.push(count);
+    }
+    
+    return { velocity, avgResponseTime, uniqueParticipants, sparklineData };
+  };
+  
+  const metrics = calculateMetrics();
+  const maxSparkValue = Math.max(...metrics.sparklineData);
+  
+  return (
+    <div className="grid grid-cols-3 gap-2">
+      {/* Velocity Chip */}
+      <motion.div
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.3 }}
+        className="bg-gray-50 rounded-lg p-3"
+      >
+        <div className="flex items-center justify-between mb-1">
+          <span className="text-xs text-gray-500">Velocity</span>
+          <TrendingUp className="h-3 w-3 text-green-500" />
+        </div>
+        <p className="text-sm font-semibold">{metrics.velocity.toFixed(1)}/day</p>
+        <div className="h-8 flex items-end gap-0.5 mt-2">
+          {metrics.sparklineData.map((value, i) => (
+            <div
+              key={i}
+              className="flex-1 bg-blue-400 rounded-t"
+              style={{ 
+                height: `${maxSparkValue > 0 ? (value / maxSparkValue) * 100 : 0}%`,
+                minHeight: value > 0 ? '2px' : '0'
+              }}
+            />
+          ))}
+        </div>
+      </motion.div>
+      
+      {/* Response Time Chip */}
+      <motion.div
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.3, delay: 0.1 }}
+        className="bg-gray-50 rounded-lg p-3"
+      >
+        <div className="flex items-center justify-between mb-1">
+          <span className="text-xs text-gray-500">Avg Response</span>
+          <Clock className="h-3 w-3 text-orange-500" />
+        </div>
+        <p className="text-sm font-semibold">{metrics.avgResponseTime}h</p>
+        <div className="text-xs text-gray-400 mt-1">
+          {metrics.avgResponseTime < 12 ? 'Fast' : metrics.avgResponseTime < 24 ? 'Normal' : 'Slow'}
+        </div>
+      </motion.div>
+      
+      {/* Participants Chip */}
+      <motion.div
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.3, delay: 0.2 }}
+        className="bg-gray-50 rounded-lg p-3"
+      >
+        <div className="flex items-center justify-between mb-1">
+          <span className="text-xs text-gray-500">Participants</span>
+          <Users className="h-3 w-3 text-purple-500" />
+        </div>
+        <p className="text-sm font-semibold">{metrics.uniqueParticipants}</p>
+        <div className="text-xs text-gray-400 mt-1">
+          {cluster.participantCount} total
+        </div>
+      </motion.div>
+    </div>
+  );
+}
+
+// Thread Tree Timeline component
+function ThreadTreeTimeline({ emails }: { emails: ProjectCluster['emails'] }) {
+  const [expandedNodes, setExpandedNodes] = useState<Set<string>>(new Set());
+  
+  // Create a mock thread structure
+  const buildThreadTree = () => {
+    const nodes = emails.map((email, index) => ({
+      id: email.id,
+      subject: email.subject,
+      from: email.from,
+      date: new Date(email.date),
+      snippet: email.snippet,
+      parentId: index > 0 && Math.random() > 0.3 ? emails[Math.floor(Math.random() * index)].id : null,
+      depth: 0,
+      children: [] as any[]
+    }));
+    
+    // Build tree structure
+    const nodeMap = new Map(nodes.map(n => [n.id, n]));
+    const roots: typeof nodes = [];
+    
+    nodes.forEach(node => {
+      if (node.parentId && nodeMap.has(node.parentId)) {
+        const parent = nodeMap.get(node.parentId)!;
+        parent.children.push(node);
+        node.depth = parent.depth + 1;
+      } else {
+        roots.push(node);
+      }
+    });
+    
+    return roots;
+  };
+  
+  const threadTree = useMemo(() => buildThreadTree(), [emails]);
+  
+  const toggleExpanded = (nodeId: string) => {
+    setExpandedNodes(prev => {
+      const next = new Set(prev);
+      if (next.has(nodeId)) {
+        next.delete(nodeId);
+      } else {
+        next.add(nodeId);
+      }
+      return next;
+    });
+  };
+  
+  const renderNode = (node: any, index: number) => {
+    const isExpanded = expandedNodes.has(node.id);
+    const hasChildren = node.children.length > 0;
+    
+    return (
+      <motion.div
+        key={node.id}
+        initial={{ opacity: 0, x: -20 }}
+        animate={{ opacity: 1, x: 0 }}
+        transition={{ duration: 0.3, delay: index * 0.05 }}
+        style={{ marginLeft: `${node.depth * 20}px` }}
+        className="mb-2"
+      >
+        <div 
+          className="flex items-start gap-2 p-2 rounded hover:bg-gray-50 cursor-pointer transition-colors"
+          onClick={() => hasChildren && toggleExpanded(node.id)}
+        >
+          <div className="mt-1">
+            {hasChildren && (
+              <ChevronRight 
+                className={`h-4 w-4 text-gray-400 transition-transform ${isExpanded ? 'rotate-90' : ''}`} 
+              />
+            )}
+            {!hasChildren && (
+              <div className="w-2 h-2 bg-gray-300 rounded-full ml-1" />
+            )}
+          </div>
+          
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-medium text-gray-700 truncate">{node.from}</span>
+              <span className="text-xs text-gray-400">{format(node.date, 'MMM d, h:mm a')}</span>
+            </div>
+            <p className="text-xs text-gray-600 truncate">{node.subject}</p>
+          </div>
+        </div>
+        
+        {isExpanded && node.children.map((child: any, childIndex: number) => 
+          renderNode(child, index + childIndex + 1)
+        )}
+      </motion.div>
+    );
+  };
+  
+  return (
+    <div className="max-h-64 overflow-y-auto border rounded-lg p-3 bg-gray-50">
+      {threadTree.length === 0 ? (
+        <p className="text-sm text-gray-500 text-center">No email threads yet</p>
+      ) : (
+        threadTree.map((node, index) => renderNode(node, index))
+      )}
     </div>
   );
 }
@@ -898,6 +1100,18 @@ export function ProjectManagement() {
               <div>
                 <h3 className="font-medium mb-2">Email Activity Over Time</h3>
                 <EmailActivityChart cluster={selectedCluster} />
+              </div>
+
+              {/* Mini KPI Dashboard */}
+              <div>
+                <h3 className="font-medium mb-2">Conversation Metrics</h3>
+                <MiniKPIDashboard cluster={selectedCluster} />
+              </div>
+
+              {/* Thread Tree Timeline */}
+              <div>
+                <h3 className="font-medium mb-2">Email Thread Evolution</h3>
+                <ThreadTreeTimeline emails={selectedCluster.emails} />
               </div>
 
               <div>

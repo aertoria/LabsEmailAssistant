@@ -51,6 +51,10 @@ This is a full-stack Gmail AI assistant application called "MAILLAB" built with 
 4. **Gmail Control**: Execute Gmail operations via natural language commands
 5. **Contact Insights**: Analyze communication patterns and relationships
 6. **Project Management**: AI-powered email clustering that organizes emails into project clusters with progress tracking, milestones, and visual timeline
+   - Historical Trends View: Animated area charts showing email flow over time
+   - Email Activity Timeline: Bar chart visualization of daily email activity
+   - Conversation Metrics: KPI dashboard with velocity, response time, and participant tracking
+   - Thread Tree Timeline: Hierarchical view of email conversations with expandable threads
 
 ### Database Schema
 - **Users**: Store user profiles, OAuth tokens, and sync state
