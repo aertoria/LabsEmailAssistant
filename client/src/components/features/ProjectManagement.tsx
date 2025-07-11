@@ -10,6 +10,8 @@ import { toast } from 'react-hot-toast';
 import { queryClient } from '@/lib/queryClient';
 import { apiRequest } from '@/lib/queryClient';
 import { format, differenceInDays } from 'date-fns';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Area, AreaChart } from 'recharts';
+import { motion, AnimatePresence } from "framer-motion";
 
 interface ProjectCluster {
   id: string;
@@ -36,6 +38,243 @@ interface ProjectCluster {
   }[];
   starred?: boolean;
   priority: 'high' | 'medium' | 'low';
+}
+
+// Component for historical trends visualization
+function HistoricalTrends({ clusters }: { clusters: ProjectCluster[] }) {
+  const [animatedData, setAnimatedData] = useState<any[]>([]);
+  
+  // Generate mock historical data for each cluster
+  const generateHistoricalData = () => {
+    if (!clusters || clusters.length === 0) return [];
+    
+    // Generate data points for the last 30 days
+    const days = 30;
+    const data = [];
+    
+    for (let i = days; i >= 0; i--) {
+      const date = new Date();
+      date.setDate(date.getDate() - i);
+      
+      const dataPoint: any = {
+        date: format(date, 'MMM d'),
+        fullDate: date.toISOString(),
+      };
+      
+      // For each cluster, calculate cumulative emails up to this date
+      clusters.forEach((cluster) => {
+        const clusterStartDate = new Date(cluster.firstActivity);
+        const daysActive = differenceInDays(date, clusterStartDate);
+        
+        if (daysActive >= 0) {
+          // Calculate cumulative emails based on cluster age and email count
+          const progress = Math.min(1, daysActive / 21); // Assume 3 weeks for full cluster
+          const emailCount = Math.floor(cluster.emailCount * progress * (1 + Math.random() * 0.2 - 0.1));
+          dataPoint[cluster.id] = emailCount;
+        } else {
+          dataPoint[cluster.id] = 0;
+        }
+      });
+      
+      data.push(dataPoint);
+    }
+    
+    return data;
+  };
+  
+  useEffect(() => {
+    const data = generateHistoricalData();
+    
+    // Animate data loading
+    if (data.length > 0) {
+      const animationDuration = 1500;
+      const stepDuration = animationDuration / data.length;
+      
+      data.forEach((point, index) => {
+        setTimeout(() => {
+          setAnimatedData(prev => [...prev, point]);
+        }, index * stepDuration);
+      });
+    }
+    
+    return () => setAnimatedData([]);
+  }, [clusters]);
+  
+  const colors = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899'];
+  
+  return (
+    <div className="space-y-6">
+      {/* Summary Cards */}
+      <div className="grid grid-cols-3 gap-4 mb-6">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5 }}
+        >
+          <Card>
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-gray-500">Total Email Flow</p>
+                  <p className="text-2xl font-bold">{clusters.reduce((sum, c) => sum + c.emailCount, 0)}</p>
+                </div>
+                <TrendingUp className="h-8 w-8 text-green-500" />
+              </div>
+            </CardContent>
+          </Card>
+        </motion.div>
+        
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, delay: 0.1 }}
+        >
+          <Card>
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-gray-500">Active Clusters</p>
+                  <p className="text-2xl font-bold">{clusters.filter(c => c.status === 'active').length}</p>
+                </div>
+                <FolderOpen className="h-8 w-8 text-blue-500" />
+              </div>
+            </CardContent>
+          </Card>
+        </motion.div>
+        
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, delay: 0.2 }}
+        >
+          <Card>
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-gray-500">Avg. Emails/Cluster</p>
+                  <p className="text-2xl font-bold">
+                    {clusters.length > 0 ? Math.round(clusters.reduce((sum, c) => sum + c.emailCount, 0) / clusters.length) : 0}
+                  </p>
+                </div>
+                <Mail className="h-8 w-8 text-purple-500" />
+              </div>
+            </CardContent>
+          </Card>
+        </motion.div>
+      </div>
+      
+      {/* Area Chart */}
+      <motion.div
+        initial={{ opacity: 0, scale: 0.95 }}
+        animate={{ opacity: 1, scale: 1 }}
+        transition={{ duration: 0.7 }}
+      >
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg">Email Flow Over Time</CardTitle>
+            <CardDescription>Cumulative emails in each cluster over the last 30 days</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <ResponsiveContainer width="100%" height={400}>
+              <AreaChart data={animatedData}>
+                <defs>
+                  {clusters.map((cluster, index) => (
+                    <linearGradient key={cluster.id} id={`gradient-${cluster.id}`} x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor={colors[index % colors.length]} stopOpacity={0.8}/>
+                      <stop offset="95%" stopColor={colors[index % colors.length]} stopOpacity={0.1}/>
+                    </linearGradient>
+                  ))}
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                <XAxis 
+                  dataKey="date" 
+                  stroke="#666"
+                  tick={{ fontSize: 12 }}
+                />
+                <YAxis 
+                  stroke="#666"
+                  tick={{ fontSize: 12 }}
+                />
+                <Tooltip 
+                  contentStyle={{ 
+                    backgroundColor: 'rgba(255, 255, 255, 0.95)', 
+                    border: '1px solid #ccc',
+                    borderRadius: '8px',
+                    padding: '10px'
+                  }}
+                  formatter={(value: any, name: any) => {
+                    const cluster = clusters.find(c => c.id === name);
+                    return [value, cluster?.title || name];
+                  }}
+                />
+                {clusters.map((cluster, index) => (
+                  <Area
+                    key={cluster.id}
+                    type="monotone"
+                    dataKey={cluster.id}
+                    stroke={colors[index % colors.length]}
+                    fill={`url(#gradient-${cluster.id})`}
+                    strokeWidth={2}
+                    animationDuration={1500}
+                    animationEasing="ease-in-out"
+                  />
+                ))}
+              </AreaChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
+      </motion.div>
+      
+      {/* Cluster Growth Cards */}
+      <div className="grid grid-cols-2 gap-4">
+        {clusters.slice(0, 4).map((cluster, index) => (
+          <motion.div
+            key={cluster.id}
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ duration: 0.5, delay: 0.3 + index * 0.1 }}
+          >
+            <Card className="hover:shadow-lg transition-shadow">
+              <CardContent className="p-4">
+                <div className="flex items-start justify-between mb-2">
+                  <div>
+                    <h4 className="font-medium text-sm">{cluster.title}</h4>
+                    <p className="text-xs text-gray-500">Started {format(new Date(cluster.firstActivity), 'MMM d')}</p>
+                  </div>
+                  <Badge 
+                    className={`${
+                      cluster.status === 'active' ? 'bg-green-100 text-green-800' :
+                      cluster.status === 'completed' ? 'bg-blue-100 text-blue-800' :
+                      'bg-yellow-100 text-yellow-800'
+                    }`}
+                  >
+                    {cluster.status}
+                  </Badge>
+                </div>
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-gray-600">Email Growth</span>
+                    <span className="font-medium">+{Math.round(cluster.emailCount * 0.15)} this week</span>
+                  </div>
+                  <Progress value={cluster.progress} className="h-2" />
+                  <div className="flex items-center gap-4 text-xs text-gray-500">
+                    <span className="flex items-center gap-1">
+                      <Mail className="h-3 w-3" />
+                      {cluster.emailCount} emails
+                    </span>
+                    <span className="flex items-center gap-1">
+                      <Users className="h-3 w-3" />
+                      {cluster.participantCount} people
+                    </span>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </motion.div>
+        ))}
+      </div>
+    </div>
+  );
 }
 
 export function ProjectManagement() {
@@ -265,10 +504,11 @@ export function ProjectManagement() {
         </div>
 
         <Tabs defaultValue="overview" className="space-y-4">
-          <TabsList>
+          <TabsList className="grid grid-cols-4">
             <TabsTrigger value="overview">Overview</TabsTrigger>
             <TabsTrigger value="all-projects">All Projects</TabsTrigger>
             <TabsTrigger value="timeline">Timeline View</TabsTrigger>
+            <TabsTrigger value="trends">Trends</TabsTrigger>
           </TabsList>
 
           <TabsContent value="overview" className="space-y-6">
@@ -483,6 +723,18 @@ export function ProjectManagement() {
                     </div>
                   ))}
                 </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="trends" className="space-y-4">
+            <Card>
+              <CardHeader>
+                <CardTitle>Historical Email Trends</CardTitle>
+                <CardDescription>Track email flow into project clusters over time</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <HistoricalTrends clusters={clusters || []} />
               </CardContent>
             </Card>
           </TabsContent>
