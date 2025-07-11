@@ -36,7 +36,7 @@ export function Sidebar({ onFeatureSelect, activeFeature, onFolderSelect, active
 
   const folders = [
     { id: "inbox", name: "Inbox", Icon: Inbox, count: 0 },
-    { id: "project-management", name: "Project Management", Icon: FolderKanban, count: 0 },
+    { id: "project-management", name: "Cluster", Icon: FolderKanban, count: 0 },
     { id: "starred", name: "Starred", Icon: Star, count: 0 },
     { id: "snoozed", name: "Snoozed", Icon: Clock, count: 0 },
     { id: "sent", name: "Sent", Icon: Send, count: 0 },
