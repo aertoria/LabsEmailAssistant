@@ -242,98 +242,98 @@ export function ProjectManagement() {
           </TabsContent>
 
           <TabsContent value="all-projects" className="space-y-4">
-            {sortedClusters.map((cluster) => (
-              <Card key={cluster.id} className="overflow-hidden">
-                <CardHeader 
-                  className="cursor-pointer hover:bg-gray-50"
-                  onClick={() => toggleClusterExpansion(cluster.id)}
+            <div className="grid grid-cols-1 gap-3">
+              {sortedClusters.map((cluster) => (
+                <Card 
+                  key={cluster.id} 
+                  className="overflow-hidden transition-all duration-200 hover:shadow-md cursor-pointer cluster-card"
+                  onClick={() => setSelectedCluster(cluster)}
                 >
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      {expandedClusters.includes(cluster.id) ? (
-                        <ChevronDown className="h-4 w-4" />
-                      ) : (
-                        <ChevronRight className="h-4 w-4" />
-                      )}
-                      <CardTitle className="text-lg">{cluster.title}</CardTitle>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          toggleStar(cluster.id);
-                        }}
-                      >
-                        <Star className={`h-4 w-4 ${starredClusters.includes(cluster.id) ? 'fill-yellow-500 text-yellow-500' : ''}`} />
-                      </Button>
+                  <div className="p-4">
+                    <div className="flex justify-between items-start mb-3">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-1">
+                          <h4 className="font-semibold text-lg text-blue-700">{cluster.title}</h4>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              toggleStar(cluster.id);
+                            }}
+                          >
+                            <Star className={`h-4 w-4 ${starredClusters.includes(cluster.id) ? 'fill-yellow-500 text-yellow-500' : ''}`} />
+                          </Button>
+                        </div>
+                        <div className="flex items-center gap-2 mb-2">
+                          {getPriorityBadge(cluster.priority)}
+                          {getStatusBadge(cluster.status)}
+                          <Badge variant="outline" className="text-xs">
+                            {cluster.emailCount} emails
+                          </Badge>
+                        </div>
+                      </div>
+                      <ChevronRight className="h-5 w-5 text-gray-400" />
                     </div>
-                    <div className="flex items-center gap-2">
-                      {getPriorityBadge(cluster.priority)}
-                      {getStatusBadge(cluster.status)}
+                    
+                    <p className="text-sm text-gray-600 mb-3">{cluster.summary}</p>
+                    
+                    <div className="flex items-center justify-between text-xs text-gray-500">
+                      <div className="flex items-center gap-3">
+                        <span className="flex items-center gap-1">
+                          <Users className="h-3 w-3" />
+                          {cluster.participantCount} participants
+                        </span>
+                        <span className="flex items-center gap-1">
+                          <Calendar className="h-3 w-3" />
+                          {format(new Date(cluster.lastActivity), 'MMM d')}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs">{cluster.progress}%</span>
+                        <Progress value={cluster.progress} className="h-2 w-20" />
+                      </div>
                     </div>
+                    
+                    {cluster.emails.length > 0 && (
+                      <div className="mt-3 pt-3 border-t border-gray-100">
+                        <p className="text-xs text-gray-500 mb-2">RECENT EMAILS:</p>
+                        <ul className="space-y-1 text-xs text-gray-600">
+                          {cluster.emails.slice(0, 2).map((email, idx) => (
+                            <li key={idx} className="truncate">• {email.subject}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
                   </div>
-                  <CardDescription className="mt-2">{cluster.summary}</CardDescription>
-                </CardHeader>
-                
-                {expandedClusters.includes(cluster.id) && (
-                  <CardContent className="space-y-4">
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-                      <div>
-                        <p className="text-gray-500">Emails</p>
-                        <p className="font-medium">{cluster.emailCount}</p>
-                      </div>
-                      <div>
-                        <p className="text-gray-500">Participants</p>
-                        <p className="font-medium">{cluster.participantCount}</p>
-                      </div>
-                      <div>
-                        <p className="text-gray-500">Duration</p>
-                        <p className="font-medium">
-                          {differenceInDays(new Date(cluster.lastActivity), new Date(cluster.firstActivity))} days
-                        </p>
-                      </div>
-                      <div>
-                        <p className="text-gray-500">Progress</p>
-                        <Progress value={cluster.progress} className="h-2 mt-1" />
-                      </div>
-                    </div>
-
-                    <div>
-                      <h4 className="font-medium mb-2">Key Participants</h4>
-                      <div className="flex flex-wrap gap-2">
-                        {cluster.keyParticipants.map((participant, idx) => (
-                          <Badge key={idx} variant="secondary">{participant}</Badge>
-                        ))}
-                      </div>
-                    </div>
-
-                    <div>
-                      <h4 className="font-medium mb-2">Recent Emails</h4>
-                      <div className="space-y-2">
-                        {cluster.emails.slice(0, 3).map((email) => (
-                          <div key={email.id} className="p-3 bg-gray-50 rounded-lg">
-                            <div className="flex items-center justify-between mb-1">
-                              <p className="font-medium text-sm">{email.subject}</p>
-                              <p className="text-xs text-gray-500">{format(new Date(email.date), 'MMM d')}</p>
-                            </div>
-                            <p className="text-xs text-gray-600">{email.from}</p>
-                            <p className="text-xs text-gray-500 mt-1">{email.snippet}</p>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-
+                  
+                  <div className="flex divide-x divide-gray-200 border-t border-gray-200">
                     <Button 
-                      className="w-full" 
-                      variant="outline"
-                      onClick={() => setSelectedCluster(cluster)}
+                      variant="ghost" 
+                      className="flex-1 rounded-none text-blue-600 py-3 h-auto"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        toast.success('Project summary coming soon!');
+                      }}
                     >
-                      View Full Project Details
+                      <FolderOpen size={16} className="mr-2" />
+                      View Details
                     </Button>
-                  </CardContent>
-                )}
-              </Card>
-            ))}
+                    <Button 
+                      variant="ghost" 
+                      className="flex-1 rounded-none text-green-600 py-3 h-auto"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        toast.success('Draft reply coming soon!');
+                      }}
+                    >
+                      <Mail size={16} className="mr-2" />
+                      Draft Update
+                    </Button>
+                  </div>
+                </Card>
+              ))}
+            </div>
           </TabsContent>
 
           <TabsContent value="timeline" className="space-y-4">

@@ -213,7 +213,7 @@ export default function Login() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-gray-50">
       <div className="flex flex-col items-center space-y-6 p-8 bg-white rounded-lg shadow-md max-w-md w-full">
-        <h1 className="text-3xl font-bold text-gray-800">Labster's Mail Assist</h1>
+        <h1 className="text-3xl font-bold text-gray-800">MAILLAB</h1>
         <p className="text-gray-600">Sign in to continue</p>
         
         {/* Google Sign In Button */}

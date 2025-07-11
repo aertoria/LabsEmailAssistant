@@ -2,7 +2,7 @@
 
 ## Overview
 
-This is a full-stack Gmail AI assistant application called "Labster's MailAssist" built with React, Express, and PostgreSQL. The application provides intelligent email management features including brain dumping, smart replies, context synthesis, Gmail control via natural language, and contact insights. Users authenticate via Google OAuth to access their Gmail data, which is then processed using OpenAI's API to provide AI-powered email assistance.
+This is a full-stack Gmail AI assistant application called "MAILLAB" built with React, Express, and PostgreSQL. The application provides intelligent email management features including brain dumping, smart replies, context synthesis, Gmail control via natural language, and contact insights. Users authenticate via Google OAuth to access their Gmail data, which is then processed using OpenAI's API to provide AI-powered email assistance.
 
 ## System Architecture
 
@@ -105,3 +105,5 @@ Preferred communication style: Simple, everyday language.
 
 Changelog:
 - July 08, 2025. Initial setup
+- January 11, 2025. Changed application name from "Labster's MailAssist" to "MAILLAB"
+- January 11, 2025. Added Project Management tab with AI-powered email clustering and progress tracking
