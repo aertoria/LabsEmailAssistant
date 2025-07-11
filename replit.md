@@ -112,3 +112,4 @@ Changelog:
 - July 08, 2025. Initial setup
 - January 11, 2025. Changed application name from "Labster's MailAssist" to "MAILLAB"
 - January 11, 2025. Added Project Management tab with AI-powered email clustering and progress tracking
+- January 11, 2025. Simplified Project Management UI to show All Projects view by default without tabs
