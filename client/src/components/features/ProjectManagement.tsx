@@ -891,13 +891,7 @@ export function ProjectManagement() {
                   <div className="p-4 bg-blue-50">
                     <h5 className="text-xs font-medium text-gray-500 mb-1">PROJECT SUMMARY</h5>
                     <p className="text-sm text-gray-700">{cluster.summary}</p>
-                    <div className="flex items-center justify-between mt-3">
-                      <span className="text-xs text-gray-600">Progress</span>
-                      <div className="flex items-center gap-2">
-                        <Progress value={cluster.progress} className="h-2 w-24" />
-                        <span className="text-xs font-medium">{cluster.progress}%</span>
-                      </div>
-                    </div>
+                    
                   </div>
                   
                   <div className="flex divide-x divide-gray-200 border-t border-gray-200">
