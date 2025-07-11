@@ -8,6 +8,7 @@ import { SyncStatus } from "@/components/SyncStatus";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/useAuth";
 import { FeatureContainer } from "@/components/features/FeatureContainer";
+import { ProjectManagement } from "@/components/features/ProjectManagement";
 
 export default function Dashboard() {
   const { isAuthenticated: authProviderAuthenticated, user: authUser, signOut } = useAuth();
@@ -19,10 +20,16 @@ export default function Dashboard() {
   
   // State to track the active feature (from sidebar)
   const [activeFeature, setActiveFeature] = useState<string | null>(null);
+  const [activeFolder, setActiveFolder] = useState<string>("inbox");
 
   // Callback function to handle feature selection from sidebar
   const handleFeatureSelect = (featureId: string) => {
     setActiveFeature(featureId);
+  };
+  
+  // Callback function to handle folder selection from sidebar
+  const handleFolderSelect = (folderId: string) => {
+    setActiveFolder(folderId);
   };
   
   // Check auth status once at initialization
@@ -161,12 +168,19 @@ export default function Dashboard() {
       <Header user={user} onSignOut={handleSignOut} />
       
       <main className="flex-1 flex overflow-hidden">
-        <Sidebar onFeatureSelect={handleFeatureSelect} activeFeature={activeFeature} />
+        <Sidebar 
+          onFeatureSelect={handleFeatureSelect} 
+          activeFeature={activeFeature}
+          onFolderSelect={handleFolderSelect}
+          activeFolder={activeFolder}
+        />
         
         {activeFeature ? (
           <div className="flex-1 overflow-y-auto">
             <FeatureContainer activeFeature={activeFeature} />
           </div>
+        ) : activeFolder === 'project-management' ? (
+          <ProjectManagement />
         ) : (
           <>
             <EmailList onEmailsLoaded={setEmails} />

@@ -285,6 +285,104 @@ function extractSenderName(from: string): string {
   return from.split('@')[0].replace(/[<>]/g, '').trim() || 'Unknown';
 }
 
+// Helper function to cluster emails into projects
+async function clusterEmailsIntoProjects(emails: any[]) {
+  if (!emails || emails.length === 0) {
+    return [];
+  }
+
+  const prompt = `Analyze the following emails and organize them into project clusters. A project is a collection of related emails that discuss the same topic, initiative, or work stream.
+
+For each project cluster, provide:
+1. A descriptive title
+2. A summary of what the project is about
+3. The overall progress (0-100%)
+4. Status: 'active' (recent activity), 'stalled' (no recent activity), or 'completed'
+5. Priority: 'high', 'medium', or 'low' based on urgency and importance
+6. Key participants (extract names from email addresses)
+7. Milestones/key events in the project timeline
+
+Return as JSON array with this structure:
+{
+  "clusters": [
+    {
+      "id": "unique-id",
+      "title": "Project Title",
+      "summary": "Brief project description",
+      "progress": 50,
+      "status": "active",
+      "priority": "high",
+      "keyParticipants": ["Name 1", "Name 2"],
+      "emailIds": ["email-id-1", "email-id-2"],
+      "milestones": [
+        {
+          "date": "2024-01-15",
+          "description": "Project kickoff",
+          "type": "start"
+        }
+      ]
+    }
+  ]
+}
+
+Emails to analyze:
+${emails.slice(0, 50).map(email => `
+ID: ${email.id}
+From: ${email.from}
+Subject: ${email.subject}
+Date: ${email.receivedAt}
+Snippet: ${email.snippet}
+`).join('\n---\n')}`;
+
+  try {
+    const response = await openai.chat.completions.create({
+      model: "gpt-4o", // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
+      messages: [
+        {
+          role: "system",
+          content: "You are an expert at analyzing email threads and organizing them into coherent project clusters. Focus on identifying related discussions, work streams, and initiatives."
+        },
+        {
+          role: "user",
+          content: prompt
+        }
+      ],
+      response_format: { type: "json_object" },
+      temperature: 0.7,
+      max_tokens: 2000
+    });
+
+    const result = JSON.parse(response.choices[0].message.content || '{"clusters": []}');
+    
+    // Enrich clusters with email data
+    const enrichedClusters = result.clusters.map((cluster: any) => {
+      const clusterEmails = emails.filter(email => 
+        cluster.emailIds.includes(email.id)
+      );
+      
+      return {
+        ...cluster,
+        emailCount: clusterEmails.length,
+        participantCount: cluster.keyParticipants.length,
+        emails: clusterEmails.map(email => ({
+          id: email.id,
+          subject: email.subject,
+          from: extractSenderName(email.from),
+          date: email.receivedAt,
+          snippet: email.snippet
+        })),
+        firstActivity: clusterEmails[clusterEmails.length - 1]?.receivedAt || new Date().toISOString(),
+        lastActivity: clusterEmails[0]?.receivedAt || new Date().toISOString()
+      };
+    });
+
+    return enrichedClusters;
+  } catch (error) {
+    console.error('Error clustering emails:', error);
+    throw error;
+  }
+}
+
 export function setupOpenAI(app: any, storage: IStorage) {
   // Endpoint to get a daily digest/summary of emails
   app.get("/api/ai/daily-digest", async (req: Request, res: Response) => {
@@ -328,6 +426,29 @@ export function setupOpenAI(app: any, storage: IStorage) {
       console.error("[API DailyDigest] Error generating daily digest:", error);
       res.status(500).json({
         message: "Failed to generate daily digest",
+        error: error.message || String(error)
+      });
+    }
+  });
+
+  // Endpoint to get project clusters from emails
+  app.post("/api/ai/project-clusters", async (req: Request, res: Response) => {
+    try {
+      const { emails } = req.body;
+      
+      if (!emails || !Array.isArray(emails)) {
+        return res.status(400).json({
+          message: "Invalid request: emails array is required"
+        });
+      }
+
+      const clusters = await clusterEmailsIntoProjects(emails);
+      
+      return res.status(200).json(clusters);
+    } catch (error: any) {
+      console.error("[API ProjectClusters] Error clustering emails:", error);
+      res.status(500).json({
+        message: "Failed to cluster emails into projects",
         error: error.message || String(error)
       });
     }
