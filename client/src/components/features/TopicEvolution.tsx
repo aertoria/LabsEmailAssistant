@@ -140,8 +140,8 @@ export function TopicEvolution({ emails }: TopicEvolutionProps) {
   // Get color for keyword
   const getKeywordColor = (keyword: string, index: number) => {
     const colors = [
-      '#3B82F6', // blue
       '#EF4444', // red
+      '#3B82F6', // blue
       '#10B981', // green
       '#F59E0B', // amber
       '#8B5CF6', // violet
@@ -234,7 +234,7 @@ export function TopicEvolution({ emails }: TopicEvolutionProps) {
       </Card>
 
       {/* Visualization */}
-      <Card className="p-4">
+      <Card className="p-6 bg-gray-50">
         <AnimatePresence mode="wait">
           {viewMode === '2d' ? (
             <motion.div
@@ -245,50 +245,74 @@ export function TopicEvolution({ emails }: TopicEvolutionProps) {
               className="h-96"
             >
               <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={lineChartData} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
-                  <defs>
-                    {selectedKeywords.map((keyword, index) => (
-                      <linearGradient key={keyword} id={`gradient-${keyword}`} x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor={getKeywordColor(keyword, index)} stopOpacity={0.8}/>
-                        <stop offset="95%" stopColor={getKeywordColor(keyword, index)} stopOpacity={0.1}/>
-                      </linearGradient>
-                    ))}
-                  </defs>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#e0e0e0" />
+                <ScatterChart margin={{ top: 20, right: 20, bottom: 40, left: 60 }}>
+                  <CartesianGrid strokeDasharray="none" stroke="#f0f0f0" />
                   <XAxis 
-                    dataKey="formattedDate" 
-                    tick={{ fontSize: 12 }}
-                    stroke="#666"
+                    type="number"
+                    dataKey="x"
+                    domain={['dataMin', 'dataMax']}
+                    tickFormatter={(value) => format(new Date(value), 'MMM d')}
+                    label={{ value: 'Date', position: 'insideBottom', offset: -10 }}
+                    tick={{ fontSize: 11 }}
+                    stroke="#999"
                   />
                   <YAxis 
-                    label={{ value: 'Frequency', angle: -90, position: 'insideLeft' }}
-                    tick={{ fontSize: 12 }}
-                    stroke="#666"
+                    type="number"
+                    dataKey="y"
+                    domain={[0, selectedKeywords.length - 1]}
+                    ticks={selectedKeywords.map((_, i) => i)}
+                    tickFormatter={(value) => selectedKeywords[value] || ''}
+                    label={{ value: 'Topics', angle: -90, position: 'insideLeft' }}
+                    tick={{ fontSize: 11 }}
+                    stroke="#999"
                   />
                   <Tooltip 
-                    contentStyle={{ 
-                      backgroundColor: 'rgba(255, 255, 255, 0.95)', 
-                      border: '1px solid #e0e0e0',
-                      borderRadius: '8px'
+                    content={({ active, payload }) => {
+                      if (active && payload && payload.length) {
+                        const data = payload[0].payload;
+                        return (
+                          <div className="bg-white px-3 py-2 rounded shadow-md border border-gray-200">
+                            <p className="font-medium text-sm">{data.keyword}</p>
+                            <p className="text-xs text-gray-600">{data.formattedDate}</p>
+                            <p className="text-xs">Frequency: {data.frequency}</p>
+                          </div>
+                        );
+                      }
+                      return null;
                     }}
                   />
-                  <Legend 
-                    wrapperStyle={{ paddingTop: '20px' }}
-                    iconType="line"
-                  />
-                  {selectedKeywords.map((keyword, index) => (
-                    <Area
-                      key={keyword}
-                      type="monotone"
-                      dataKey={keyword}
-                      stroke={getKeywordColor(keyword, index)}
-                      strokeWidth={2}
-                      fill={`url(#gradient-${keyword})`}
-                      animationDuration={1000}
-                      animationBegin={index * 100}
-                    />
-                  ))}
-                </AreaChart>
+                  {selectedKeywords.map((keyword, index) => {
+                    const keywordData = scatterChartData.filter(d => d.keyword === keyword);
+                    return (
+                      <Scatter
+                        key={keyword}
+                        name={keyword}
+                        data={keywordData}
+                        fill={getKeywordColor(keyword, index)}
+                        fillOpacity={0.7}
+                        shape={(props: any) => {
+                          const { cx, cy, payload } = props;
+                          const size = Math.sqrt(payload.z) * 5;
+                          
+                          return (
+                            <motion.circle
+                              cx={cx}
+                              cy={cy}
+                              r={0}
+                              fill={getKeywordColor(keyword, index)}
+                              fillOpacity={0.7}
+                              stroke={getKeywordColor(keyword, index)}
+                              strokeWidth={1}
+                              initial={{ r: 0 }}
+                              animate={{ r: size }}
+                              transition={{ duration: 0.5, delay: index * 0.1 }}
+                            />
+                          );
+                        }}
+                      />
+                    );
+                  })}
+                </ScatterChart>
               </ResponsiveContainer>
             </motion.div>
           ) : (

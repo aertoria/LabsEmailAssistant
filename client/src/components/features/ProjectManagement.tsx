@@ -949,12 +949,6 @@ export function ProjectManagement() {
                 <p className="text-sm text-gray-600">{selectedCluster.summary}</p>
               </div>
 
-              <div>
-                <h3 className="font-medium mb-2">Progress</h3>
-                <Progress value={selectedCluster.progress} className="h-3" />
-                <p className="text-sm text-gray-500 mt-1">{selectedCluster.progress}% complete</p>
-              </div>
-
               {/* Email Activity Chart */}
               <div>
                 <h3 className="font-medium mb-2">Email Activity Over Time</h3>
