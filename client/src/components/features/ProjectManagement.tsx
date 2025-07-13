@@ -12,6 +12,7 @@ import { format, differenceInDays } from 'date-fns';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Area, AreaChart } from 'recharts';
 import { motion, AnimatePresence } from "framer-motion";
 import { TopicEvolution } from './TopicEvolution';
+import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable";
 
 interface ProjectCluster {
   id: string;
@@ -819,15 +820,16 @@ export function ProjectManagement() {
   }
 
   return (
-    <div className="flex-1 flex">
-      <div className="flex-1 p-6 overflow-y-auto">
-        <div className="mb-6">
-          <h1 className="text-2xl font-bold text-gray-900 mb-2">Project Management</h1>
-          <p className="text-gray-600">Your emails organized into project clusters with progress tracking</p>
-        </div>
+    <ResizablePanelGroup direction="horizontal" className="h-full flex-1">
+      <ResizablePanel defaultSize={selectedCluster ? 70 : 100} minSize={50}>
+        <div className="h-full p-6 overflow-y-auto">
+          <div className="mb-6">
+            <h1 className="text-2xl font-bold text-gray-900 mb-2">Project Management</h1>
+            <p className="text-gray-600">Your emails organized into project clusters with progress tracking</p>
+          </div>
 
-        {/* All Projects View */}
-        <div className="space-y-6">
+          {/* All Projects View */}
+          <div className="space-y-6">
               {sortedClusters.map((cluster) => (
                 <Card 
                   key={cluster.id} 
@@ -921,12 +923,16 @@ export function ProjectManagement() {
                 </Card>
               ))}
         </div>
-      </div>
+        </div>
+      </ResizablePanel>
 
       {/* Project Detail Sidebar */}
       {selectedCluster && (
-        <div className="w-96 bg-white border-l overflow-y-auto">
-          <div className="p-6">
+        <>
+          <ResizableHandle />
+          <ResizablePanel defaultSize={30} minSize={20} maxSize={50}>
+            <div className="h-full bg-white border-l overflow-y-auto">
+              <div className="p-6">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-xl font-bold">{selectedCluster.title}</h2>
               <Button
@@ -1024,7 +1030,9 @@ export function ProjectManagement() {
             </div>
           </div>
         </div>
+          </ResizablePanel>
+        </>
       )}
-    </div>
+    </ResizablePanelGroup>
   );
 }
