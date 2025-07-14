@@ -53,7 +53,7 @@ Task: In one sentence tell me why this email is urgent and important, and give m
         
         const apiResponse = await Promise.race([
           openai.chat.completions.create({
-            model: "gpt-4o", // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
+            model: "gpt-4.1",            // default to GPT-4.1
             messages: [{ role: "user", content: prompt }],
             max_tokens: 100, // Adjust as needed for a concise sentence
             temperature: 0.6 // Adjust for creativity vs. consistency
@@ -158,7 +158,7 @@ ${emailDataForIdentification}`;
 
     try {
       const identificationResponse = await openai.chat.completions.create({
-        model: "gpt-4o", // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
+        model: "gpt-4.1",            // default to GPT-4.1
         messages: [{ role: "user", content: identificationPrompt }],
         max_tokens: 150, // Enough for Subject/From lines
         temperature: 0.2, // Low temperature for factual identification
@@ -220,7 +220,7 @@ Suggestion: [Reply strategy sentence].`;
     console.log("[OpenAI ImportantEmail] Sending explanation prompt for the identified email...");
     try {
       const explanationResponse = await openai.chat.completions.create({
-        model: "gpt-4o", // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
+        model: "gpt-4.1",            // default to GPT-4.1
         messages: [{ role: "user", content: explanationPrompt }],
         max_tokens: 150, // Should be plenty for two sentences
         temperature: 0.5,
@@ -335,8 +335,9 @@ Snippet: ${email.snippet}
 `).join('\n---\n')}`;
 
   try {
+    
     const response = await openai.chat.completions.create({
-      model: "gpt-4o", // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
+      model: "gpt-4.1",            // default to GPT-4.1
       messages: [
         {
           role: "system",
@@ -467,7 +468,7 @@ export function setupOpenAI(app: any, storage: IStorage) {
 
       const topicPromises = emails.map(async (email) => {
         try {
-          const prompt = `Extract 3-5 key topic keywords from this email. Return only the keywords, separated by commas.
+          const prompt = `Extract 3-5 key topic keywords from this email. These topics should be related to subject of the email.Return only the keywords, separated by commas.
           
 Email Subject: ${email.subject}
 Email Content: ${email.snippet}
@@ -475,7 +476,7 @@ Email Content: ${email.snippet}
 Keywords:`;
 
           const response = await openai.chat.completions.create({
-            model: "gpt-4o", // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
+            model: "gpt-4.1",            // hard-coded to GPT-4.1
             messages: [{ role: "user", content: prompt }],
             max_tokens: 50,
             temperature: 0.3,
@@ -499,6 +500,15 @@ Keywords:`;
       });
 
       const topicData = await Promise.all(topicPromises);
+
+      // Debug log: map of keyword -> timestamps array
+      const keywordTimestampPairs: Record<string, string[]> = {};
+      topicData.forEach(({ keywords, date }) => {
+        keywords.forEach((kw: string) => {
+          (keywordTimestampPairs[kw] ||= []).push(date);
+        });
+      });
+      console.log('[API ExtractTopics] keywordTimestampPairs:\n', JSON.stringify(keywordTimestampPairs, null, 2));
       
       // Aggregate topics by date and frequency
       const topicEvolution = processTopicEvolution(topicData);

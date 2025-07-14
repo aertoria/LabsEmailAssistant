@@ -634,17 +634,14 @@ export function AISidebar({ emails }: { emails: any[] }) {
           </div>
           
           {isGenerating && activeTab === 'clusters' ? (
-            <Card className="p-4">
-              <Skeleton className="h-6 w-3/4 mb-3" />
-              <Skeleton className="h-4 w-1/2 mb-1" />
-              <Skeleton className="h-4 w-5/6 mb-3" />
-              <Skeleton className="h-20 w-full mb-4" />
-              
-              <Skeleton className="h-6 w-3/4 mb-3" />
-              <Skeleton className="h-4 w-1/2 mb-1" />
-              <Skeleton className="h-4 w-5/6 mb-3" />
-              <Skeleton className="h-20 w-full" />
-            </Card>
+            <div className="flex items-center justify-center py-16">
+              <div className="text-center w-64">
+                <div className="w-full h-3 bg-gray-200 rounded-full overflow-hidden mb-4">
+                  <div className="h-full bg-blue-500 animate-pulse w-5/6"></div>
+                </div>
+                <p className="text-gray-600 text-sm">Analyzing and indexing...</p>
+              </div>
+            </div>
           ) : generatedClusters.length > 0 ? (
             <div className="space-y-6">
               {generatedClusters.map((cluster) => (
